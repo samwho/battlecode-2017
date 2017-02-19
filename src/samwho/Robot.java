@@ -63,23 +63,25 @@ public abstract strictfp class Robot {
     debug_out("condition met, continuing");
   }
 
-  MapLocation getUnoccupiedLocationAroundMe() throws GameActionException {
-    int attempts = 32;
+  Direction getUnoccupiedBuildDirectionFor(RobotType other)
+    throws GameActionException {
+    int angles = 8;
+    float step = 360.0f / angles;
+    float currentAngle = 0.0f;
 
-    while (attempts-- > 0) {
-      Direction d = randomDirection();
-      MapLocation l = rc.getLocation().add(d, rc.getType().bodyRadius + 0.01f);
+    for (int i = 0; i < angles; i++) {
+      Direction d = new Direction(deg2rad(currentAngle));
+      MapLocation l = rc.getLocation().add(d,
+          rc.getType().bodyRadius + 0.01f + other.bodyRadius);
 
-      if (!rc.isLocationOccupied(l)) {
-        return l;
+      if (!rc.isCircleOccupied(l, other.bodyRadius)) {
+        return d;
       }
+
+      currentAngle += step;
     }
 
     return null;
-  }
-
-  Direction getUnoccupiedDirectionAroundMe() throws GameActionException {
-    return rc.getLocation().directionTo(getUnoccupiedLocationAroundMe());
   }
 
   float deg2rad(float deg) {

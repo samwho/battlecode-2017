@@ -6,16 +6,32 @@ public strictfp class RobotFactory {
     Robot r;
 
     switch (rc.getType()) {
-      case ARCHON:     r = new Archon();
-      case GARDENER:   r = new Gardener();
-      case SOLDIER:    r = new Soldier();
-      case TANK:       r = null;
-      case SCOUT:      r = null;
-      case LUMBERJACK: r = new Lumberjack();
-      default:         r = null;
+      case ARCHON:
+        r = new Archon();
+        break;
+      case GARDENER:
+        r = new Gardener();
+        break;
+      case SOLDIER:
+        r = new Soldier();
+        break;
+      case TANK:
+        r = null;
+        break;
+      case SCOUT:
+        r = null;
+        break;
+      case LUMBERJACK:
+        r = new Lumberjack();
+        break;
+      default:
+        r = null;
     }
 
-    r.setRobotController(rc);
+    if (r != null) {
+      r.setRobotController(rc);
+    }
+
     return r;
   }
 }
