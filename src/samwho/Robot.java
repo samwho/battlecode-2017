@@ -9,7 +9,7 @@ public abstract strictfp class Robot {
   protected RobotController rc;
   private PriorityQueue<Action> actions = new PriorityQueue<>();
 
-  public setRobotController(RobotController rc) {
+  public void setRobotController(RobotController rc) {
     this.rc = rc;
   }
 
@@ -83,11 +83,11 @@ public abstract strictfp class Robot {
   }
 
   float deg2rad(float deg) {
-    return deg * (Math.PI / 180);
+    return deg * ((float)Math.PI / 180.0f);
   }
 
   float rad2deg(float rad) {
-    return rad * (180 * Math.PI);
+    return rad * (180.0f * (float)Math.PI);
   }
 
   /**

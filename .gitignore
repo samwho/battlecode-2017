@@ -12,6 +12,7 @@
 *.pyc
 .gradle
 /client/
+/client32/
 *.jar
 *.iml
 *.ipr
