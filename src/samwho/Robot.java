@@ -1,55 +1,66 @@
 package samwho;
 
 import java.util.function.Predicate;
+import java.util.PriorityQueue;
 
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
   protected RobotController rc;
+  private PriorityQueue<Action> actions = new PriorityQueue<>();
 
-  public Robot(RobotController rc) {
+  public setRobotController(RobotController rc) {
     this.rc = rc;
   }
 
-  public abstract void doTurn() throws GameActionException;
-  public void firstTurn() throws GameActionException {
-  }
+
+  public void onIdle() { }
+  public void onCreate() { }
 
   public void run() {
-    try {
-      firstTurn();
-    } catch (GameActionException e) {
-      e.printStackTrace();
-    }
+    onCreate();
 
-    while(true) {
+    while (true) {
+      Action action = actions.poll();
+      if (action == null) {
+        debug_out("no actions pending, calling onIdle()");
+        onIdle();
+        continue;
+      }
+
+      debug_out("got action, attempting to execute...");
+
       try {
-        doTurn();
+        action.run();
       } catch (GameActionException e) {
         e.printStackTrace();
-      } finally {
-        Clock.yield();
       }
+
+      debug_out("finished running action, relooping");
     }
   }
 
   void out(String message) {
-    System.out.println(formatMessage(message));
+    System.out.println(message);
   }
 
-  void err(String message) {
-    System.err.println(formatMessage(message));
+  void debug_out(String message) {
+    System.out.println(message);
   }
 
-  String formatMessage(String message) {
-    // return "[" + rc.getType().name() + ":" + rc.getID() + "] " + message;
-    return message;
+  void enqueue(int priority, GameRunnable action) {
+    actions.add(new Action(priority, action));
   }
 
-  void ensureDo(GamePredicate action) throws GameActionException {
-    while (!action.run()) {
+  void waitUntil(GamePredicate predicate) throws GameActionException {
+    debug_out("waitUntil called...");
+
+    while (!predicate.test()) {
+      debug_out("condition not met, yielding");
       Clock.yield();
     }
+
+    debug_out("condition met, continuing");
   }
 
   MapLocation getUnoccupiedLocationAroundMe() throws GameActionException {
@@ -71,6 +82,13 @@ public abstract strictfp class Robot {
     return rc.getLocation().directionTo(getUnoccupiedLocationAroundMe());
   }
 
+  float deg2rad(float deg) {
+    return deg * (Math.PI / 180);
+  }
+
+  float rad2deg(float rad) {
+    return rad * (180 * Math.PI);
+  }
 
   /**
    * Returns a random Direction

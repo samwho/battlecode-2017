@@ -4,5 +4,5 @@ import battlecode.common.*;
 
 @FunctionalInterface
 public interface GamePredicate {
-  boolean run() throws GameActionException;
+  boolean test() throws GameActionException;
 }
