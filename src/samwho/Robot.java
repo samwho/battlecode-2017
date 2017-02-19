@@ -1,6 +1,8 @@
 package samwho;
 
 import java.util.function.Predicate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.PriorityQueue;
 
 import battlecode.common.*;
@@ -65,23 +67,28 @@ public abstract strictfp class Robot {
 
   Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
-    int angles = 8;
-    float step = 360.0f / angles;
-    float currentAngle = 0.0f;
-
-    for (int i = 0; i < angles; i++) {
-      Direction d = new Direction(deg2rad(currentAngle));
-      MapLocation l = rc.getLocation().add(d,
-          rc.getType().bodyRadius + 0.01f + other.bodyRadius);
-
+    float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
+    for (MapLocation l : getSurroundingLocations(8, distance)) {
       if (!rc.isCircleOccupied(l, other.bodyRadius)) {
-        return d;
+        return rc.getLocation().directionTo(l);
       }
-
-      currentAngle += step;
     }
 
     return null;
+  }
+
+  List<MapLocation> getSurroundingLocations(int count, float distance) {
+    float step = 360.0f / count;
+    float currentAngle = 0.0f;
+    List<MapLocation> locations = new ArrayList<>(count);
+
+    for (int i = 0; i < count; i++) {
+      Direction d = new Direction(deg2rad(currentAngle));
+      locations.add(rc.getLocation().add(d, distance));
+      currentAngle += step;
+    }
+
+    return locations;
   }
 
   float deg2rad(float deg) {
