@@ -8,6 +8,8 @@ import java.util.PriorityQueue;
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
+  private static final int MAX_IDLE_PER_TURN = 3;
+
   protected RobotController rc;
   private PriorityQueue<Action> actions = new PriorityQueue<>();
 
@@ -36,16 +38,42 @@ public abstract strictfp class Robot {
   public void onCreate() { }
 
   /**
+   * Called at most once per turn.
+   *
+   * It's possible that this skips turns if actions run for a long time.
+   */
+  public void onNewTurn() { }
+
+  /**
    * Starts the infinite loop of robot behaviour.
    */
   public void run() {
     onCreate();
 
+    int round = rc.getRoundNum();
+    int idleCount = 0;
+
     while (true) {
+      // We're in a new round now, so we can reset the idle counter.
+      if (rc.getRoundNum() != round) {
+        round = rc.getRoundNum();
+        idleCount = 0;
+
+        onNewTurn();
+      }
+
       Action action = actions.poll();
       if (action == null) {
+        // In order to not have our robots spinning doing nothing and consuming
+        // the max number of bytecodes per turn, we have this yield after
+        // MAX_IDLE_PER_TURN idle calls.
+        if (idleCount >= MAX_IDLE_PER_TURN) {
+          Clock.yield();
+        }
+
         debug_out("no actions pending, calling onIdle()");
         onIdle();
+        idleCount++;
         continue;
       }
 
@@ -101,6 +129,22 @@ public abstract strictfp class Robot {
     }
 
     debug_out("condition met, continuing");
+  }
+
+  protected boolean trySpawn(RobotType type) throws GameActionException {
+    Direction d = getUnoccupiedBuildDirectionFor(type);
+    if (d == null) {
+      debug_out("wasn't able to find good direction to spawn " + type.name());
+      return false;
+    }
+
+    if (!rc.canBuildRobot(type, d)) {
+      debug_out("unable to spawn " + type.name() + " at " + d);
+      return false;
+    }
+
+    rc.buildRobot(type, d);
+    return true;
   }
 
   /**

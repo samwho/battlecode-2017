@@ -4,7 +4,12 @@ import battlecode.common.*;
 public strictfp class Archon extends Robot {
   @Override
   public void onCreate() {
-    enqueue(1, spawnGardener());
+    enqueue(1, () -> {
+      waitUntil(() -> rc.isBuildReady());
+      waitUntil(() -> rc.getTeamBullets() >= RobotType.GARDENER.bulletCost);
+
+      trySpawn(RobotType.GARDENER);
+    });
   }
 
   @Override
@@ -24,25 +29,5 @@ public strictfp class Archon extends Robot {
       rc.broadcastFloat(0, myLocation.x);
       rc.broadcastFloat(1, myLocation.y);
     });
-  }
-
-  private GameRunnable spawnGardener() {
-    return () -> {
-      waitUntil(() -> rc.isBuildReady());
-      waitUntil(() -> rc.getTeamBullets() >= RobotType.GARDENER.bulletCost);
-
-      Direction d = getUnoccupiedBuildDirectionFor(RobotType.GARDENER);
-      if (d == null) {
-        debug_out("wasn't able to find good direction to spawn gardener");
-        return;
-      }
-
-      if (!rc.canHireGardener(d)) {
-        debug_out("couldn't hire gardener");
-        return;
-      }
-
-      rc.hireGardener(d);
-    };
   }
 }
