@@ -11,14 +11,33 @@ public abstract strictfp class Robot {
   protected RobotController rc;
   private PriorityQueue<Action> actions = new PriorityQueue<>();
 
+  /**
+   * Only to be called by RobotFactory.
+   *
+   * I experimented with having this as a static member but that doesn't play
+   * nicely with lambdas.
+   */
   public void setRobotController(RobotController rc) {
     this.rc = rc;
   }
 
 
+  /**
+   * Called when robots are "idle".
+   *
+   * A robot is idle if it has finished running all queued actions. This
+   * function is inteded for queueing up work when all other work has finished.
+   */
   public void onIdle() { }
+
+  /**
+   * Called once, and only once, on a robot's creation.
+   */
   public void onCreate() { }
 
+  /**
+   * Starts the infinite loop of robot behaviour.
+   */
   public void run() {
     onCreate();
 
@@ -35,6 +54,7 @@ public abstract strictfp class Robot {
       try {
         action.run();
       } catch (GameActionException e) {
+        // TODO(samwho): Is it best to die instead?
         e.printStackTrace();
       }
 
@@ -42,18 +62,36 @@ public abstract strictfp class Robot {
     }
   }
 
-  void out(String message) {
-    System.out.println(message);
-  }
-
+  /**
+   * Debug-only output.
+   *
+   * Will be stripped from tournament and scrimming games, and won't count
+   * towards the bytecode limit.
+   */
   void debug_out(String message) {
     System.out.println(message);
   }
 
+  /**
+   * Queues up an action.
+   *
+   * The main loop of all robots is based on a priority queue of Actions. An
+   * Action is simply a GameRunnable and an int, with the int representing the
+   * priority (higher being higher priority).
+   *
+   * Given that each robot is independent, no restrictions on the priority are
+   * given. Robots are free to determine their own priorities.
+   */
   void enqueue(int priority, GameRunnable action) {
     actions.add(new Action(priority, action));
   }
 
+  /**
+   * Waits until a condition is true.
+   *
+   * Evaluates a given predicate every turn until that condition is true, then
+   * returns.
+   */
   void waitUntil(GamePredicate predicate) throws GameActionException {
     debug_out("waitUntil called...");
 
@@ -65,6 +103,15 @@ public abstract strictfp class Robot {
     debug_out("condition met, continuing");
   }
 
+  /**
+   * Gets a valid direction for building, or returns null.
+   *
+   * When you want to build a unit and don't care what direction you build it
+   * in, this function will give you a direction that's not occupied by
+   * anything.
+   *
+   * If no such direction exists, returns null.
+   */
   Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
     float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
@@ -77,6 +124,17 @@ public abstract strictfp class Robot {
     return null;
   }
 
+  /**
+   * Get a number of equally distributed surrounding locations a set distance
+   * away.
+   *
+   * Imagine a clock. If you passed 12 and 1 into this function, you would get
+   * 12 equally spread points around your current location, all a distance of 1
+   * away.
+   *
+   * TODO(samwho): This function could take a radius and cleverly figure out how
+   * many points you could have around you for that given radius of object.
+   */
   List<MapLocation> getSurroundingLocations(int count, float distance) {
     float step = 360.0f / count;
     float currentAngle = 0.0f;
@@ -91,20 +149,25 @@ public abstract strictfp class Robot {
     return locations;
   }
 
+  /**
+   * Convert degrees to radians.
+   */
   float deg2rad(float deg) {
     return deg * ((float)Math.PI / 180.0f);
   }
 
+  /**
+   * Convert radians to degrees.
+   */
   float rad2deg(float rad) {
     return rad * (180.0f * (float)Math.PI);
   }
 
   /**
-   * Returns a random Direction
-   * @return a random Direction
+   * Returns a random Direction.
    */
   Direction randomDirection() {
-    return new Direction((float)Math.random() * 2 * (float)Math.PI);
+    return new Direction(deg2rad((float)Math.random() * 360.0f));
   }
 
   /**
@@ -132,28 +195,30 @@ public abstract strictfp class Robot {
    */
   boolean tryMove(Direction dir, float degreeOffset, int checksPerSide)
     throws GameActionException {
-    // First, try intended direction
+    // First, try intended direction.
     if (rc.canMove(dir)) {
       rc.move(dir);
       return true;
     }
 
-    // Now try a bunch of similar angles
+    // Now try a bunch of similar angles.
     boolean moved = false;
     int currentCheck = 1;
 
-    while(currentCheck<=checksPerSide) {
-      // Try the offset of the left side
-      if(rc.canMove(dir.rotateLeftDegrees(degreeOffset*currentCheck))) {
-        rc.move(dir.rotateLeftDegrees(degreeOffset*currentCheck));
+    while(currentCheck <= checksPerSide) {
+      // Try the offset of the left side.
+      if(rc.canMove(dir.rotateLeftDegrees(degreeOffset * currentCheck))) {
+        rc.move(dir.rotateLeftDegrees(degreeOffset * currentCheck));
         return true;
       }
-      // Try the offset on the right side
-      if(rc.canMove(dir.rotateRightDegrees(degreeOffset*currentCheck))) {
-        rc.move(dir.rotateRightDegrees(degreeOffset*currentCheck));
+
+      // Try the offset on the right side.
+      if(rc.canMove(dir.rotateRightDegrees(degreeOffset * currentCheck))) {
+        rc.move(dir.rotateRightDegrees(degreeOffset * currentCheck));
         return true;
       }
-      // No move performed, try slightly further
+
+      // No move performed, try slightly further.
       currentCheck++;
     }
 
@@ -194,7 +259,7 @@ public abstract strictfp class Robot {
     // propagationDirection.  This corresponds to the smallest radius circle
     // centered at our location that would intersect with the line that is the
     // path of the bullet.
-    float perpendicularDist = (float)Math.abs(distToRobot * Math.sin(theta)); // soh cah toa :)
+    float perpendicularDist = (float)Math.abs(distToRobot * Math.sin(theta));
 
     return (perpendicularDist <= rc.getType().bodyRadius);
   }
