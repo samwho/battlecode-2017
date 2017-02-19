@@ -1,4 +1,7 @@
 package samwho;
+
+import java.util.function.Predicate;
+
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
@@ -9,8 +12,16 @@ public abstract strictfp class Robot {
   }
 
   public abstract void doTurn() throws GameActionException;
+  public void firstTurn() throws GameActionException {
+  }
 
   public void run() {
+    try {
+      firstTurn();
+    } catch (GameActionException e) {
+      e.printStackTrace();
+    }
+
     while(true) {
       try {
         doTurn();
@@ -22,11 +33,50 @@ public abstract strictfp class Robot {
     }
   }
 
+  void out(String message) {
+    System.out.println(formatMessage(message));
+  }
+
+  void err(String message) {
+    System.err.println(formatMessage(message));
+  }
+
+  String formatMessage(String message) {
+    // return "[" + rc.getType().name() + ":" + rc.getID() + "] " + message;
+    return message;
+  }
+
+  void ensureDo(GamePredicate action) throws GameActionException {
+    while (!action.run()) {
+      Clock.yield();
+    }
+  }
+
+  MapLocation getUnoccupiedLocationAroundMe() throws GameActionException {
+    int attempts = 32;
+
+    while (attempts-- > 0) {
+      Direction d = randomDirection();
+      MapLocation l = rc.getLocation().add(d, rc.getType().bodyRadius + 0.01f);
+
+      if (!rc.isLocationOccupied(l)) {
+        return l;
+      }
+    }
+
+    return null;
+  }
+
+  Direction getUnoccupiedDirectionAroundMe() throws GameActionException {
+    return rc.getLocation().directionTo(getUnoccupiedLocationAroundMe());
+  }
+
+
   /**
    * Returns a random Direction
    * @return a random Direction
    */
-  static Direction randomDirection() {
+  Direction randomDirection() {
     return new Direction((float)Math.random() * 2 * (float)Math.PI);
   }
 

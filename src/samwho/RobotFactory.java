@@ -7,6 +7,8 @@ public strictfp class RobotFactory {
       case ARCHON:     return new Archon(rc);
       case GARDENER:   return new Gardener(rc);
       case SOLDIER:    return new Soldier(rc);
+      case TANK:       return null;
+      case SCOUT:      return null;
       case LUMBERJACK: return new Lumberjack(rc);
       default:         return null;
     }

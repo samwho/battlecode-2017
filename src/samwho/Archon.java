@@ -7,15 +7,27 @@ public strictfp class Archon extends Robot {
   }
 
   @Override
+  public void firstTurn() throws GameActionException {
+    ensureDo(() -> {
+      Direction d = getUnoccupiedDirectionAroundMe();
+
+      if (d == null) {
+        out("couldn't find unoccupied location");
+        return false;
+      }
+
+      if (!rc.canHireGardener(d)) {
+        out("can't hire a gardener right now");
+        return false;
+      }
+
+      rc.hireGardener(d);
+      return true;
+    });
+  }
+
+  @Override
   public void doTurn() throws GameActionException {
-    // Generate a random direction
-    Direction dir = randomDirection();
-
-    // Randomly attempt to build a gardener in this direction
-    if (rc.canHireGardener(dir) && Math.random() < .01) {
-      rc.hireGardener(dir);
-    }
-
     // Move randomly
     tryMove(randomDirection());
 
