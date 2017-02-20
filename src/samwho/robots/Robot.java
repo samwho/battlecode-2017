@@ -117,6 +117,13 @@ public abstract strictfp class Robot {
   }
 
   /**
+   * Check whether this robot has anything to do.
+   */
+  public boolean idle() {
+    return actionQueue.isEmpty() && buildQueue.isEmpty();
+  }
+
+  /**
    * Checks if the round has changed since this was last called.
    */
   boolean isNewRound() {

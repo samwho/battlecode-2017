@@ -20,7 +20,7 @@ public strictfp class Archon extends Robot {
 
   @Override
   public void onNewTurn() {
-    if (rc.getRoundNum() % 100 == 0 && gardenerCount <= MAX_NUM_GARDENERS) {
+    if (rc.getRoundNum() % 100 == 0 && gardenerCount < MAX_NUM_GARDENERS) {
       build(RobotType.GARDENER);
     }
   }

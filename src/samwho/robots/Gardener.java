@@ -19,7 +19,15 @@ public strictfp class Gardener extends Robot {
   public void onCreate() {
     enqueue(Integer.MAX_VALUE, () -> {
       moveToGardeningLocation();
-      tryPlantTreeIfNeeded();
+
+      // Initial surrounding tree setup.
+      while (needMoreTrees()) {
+        tryPlantTreeIfNeeded();
+        waterSaddestNearbyTree();
+        Clock.yield();
+      }
+
+      // Kick off the build loop.
       build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
     });
   }
@@ -32,8 +40,10 @@ public strictfp class Gardener extends Robot {
   @Override
   public void onNewTurn() {
     if (inPosition) {
-      enqueue(1, () -> tryPlantTreeIfNeeded());
-      enqueue(0, () -> waterSaddestNearbyTree());
+      enqueue(() -> {
+        tryPlantTreeIfNeeded();
+        waterSaddestNearbyTree();
+      });
     }
   }
 
@@ -105,6 +115,16 @@ public strictfp class Gardener extends Robot {
     rc.plantTree(d);
   }
 
+  private boolean isGoodLocation() throws GameActionException {
+    float treeRadius = 1.00f;
+    float myRadius = rc.getType().bodyRadius;
+    float buffer = 0.5f; // so we don't set up too close to walls
+
+    float radius = (2 * treeRadius) + myRadius + buffer;
+    return !rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), radius) &&
+      !isOtherGardenerNearby();
+  }
+
   private void moveToGardeningLocation() throws GameActionException {
     if (inPosition) {
       Utils.debug_out("moveToGardeningLocation() called again");
@@ -118,8 +138,7 @@ public strictfp class Gardener extends Robot {
       // soldiers. As a result, the only condition for a gardening location at
       // the moment is enough space for our gardener and his surrounding
       // trees.
-      if (!isOtherGardenerNearby() &&
-          !rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), 3.03f)) {
+      if (isGoodLocation()) {
         Utils.debug_out("found gardening location!");
         break;
       }
