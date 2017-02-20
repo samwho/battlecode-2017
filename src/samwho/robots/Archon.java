@@ -1,11 +1,28 @@
-package samwho;
+package samwho.robots;
+
 import battlecode.common.*;
 
 public strictfp class Archon extends Robot {
+  private static final int MAX_NUM_GARDENERS = 2;
+  private int gardenerCount = 0;
+
   @Override
   public void onCreate() {
     build(RobotType.GARDENER);
-    build(RobotType.GARDENER);
+  }
+
+  @Override
+  public void onBuildFinished(RobotType type) {
+    if (type == RobotType.GARDENER) {
+      this.gardenerCount++;
+    }
+  }
+
+  @Override
+  public void onNewTurn() {
+    if (rc.getRoundNum() % 100 == 0 && gardenerCount <= MAX_NUM_GARDENERS) {
+      build(RobotType.GARDENER);
+    }
   }
 
   @Override

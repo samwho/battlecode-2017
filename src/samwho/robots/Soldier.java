@@ -1,4 +1,5 @@
-package samwho;
+package samwho.robots;
+
 import battlecode.common.*;
 
 public strictfp class Soldier extends Robot {

@@ -1,4 +1,7 @@
-package samwho;
+package samwho.robots;
+
+import samwho.*;
+import samwho.actions.*;
 
 import java.util.function.Predicate;
 import java.util.ArrayList;
@@ -55,7 +58,7 @@ public abstract strictfp class Robot {
    * The intended purpose of this is for you to maintain a clean stream of
    * robots to build.
    */
-  public void onBuildFinished() { }
+  public void onBuildFinished(RobotType type) { }
 
   /**
    * Starts the infinite loop of robot behaviour.
@@ -74,8 +77,10 @@ public abstract strictfp class Robot {
         try {
           if (buildQueue.size() > 0) {
             if (buildQueue.peek().isDoable()) {
-              buildQueue.poll().run();
-              onBuildFinished();
+              BuildAction ba = buildQueue.poll();
+              ba.run();
+
+              onBuildFinished(ba.getType());
             }
           }
         } catch (GameActionException e) {

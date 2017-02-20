@@ -1,4 +1,7 @@
-package samwho;
+package samwho.actions;
+
+import samwho.*;
+
 import battlecode.common.*;
 
 public abstract strictfp class Action implements Comparable<Action> {

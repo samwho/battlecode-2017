@@ -1,4 +1,7 @@
 package samwho;
+
+import samwho.robots.*;
+
 import battlecode.common.*;
 
 public strictfp class RobotFactory {

@@ -1,4 +1,7 @@
-package samwho;
+package samwho.actions;
+
+import samwho.*;
+
 import battlecode.common.*;
 
 public strictfp class RunnableAction extends Action {

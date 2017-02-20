@@ -1,6 +1,10 @@
-package samwho;
+package samwho.robots;
+
+import samwho.*;
+
 import battlecode.common.*;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.Set;
@@ -9,22 +13,28 @@ public strictfp class Gardener extends Robot {
   private static final int NUM_TREES_TO_PLANT = 5;
 
   private Set<MapLocation> treeLocations;
+  private boolean inPosition = false;
 
   @Override
   public void onCreate() {
-    enqueue(Integer.MAX_VALUE, () -> moveToGardeningLocation());
-    build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
+    enqueue(Integer.MAX_VALUE, () -> {
+      moveToGardeningLocation();
+      tryPlantTreeIfNeeded();
+      build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
+    });
   }
 
   @Override
-  public void onBuildFinished() {
+  public void onBuildFinished(RobotType type) {
     build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
   }
 
   @Override
   public void onNewTurn() {
-    enqueue(1, () -> tryPlantTreeIfNeeded());
-    enqueue(0, () -> waterSaddestNearbyTree());
+    if (inPosition) {
+      enqueue(1, () -> tryPlantTreeIfNeeded());
+      enqueue(0, () -> waterSaddestNearbyTree());
+    }
   }
 
   private void waterSaddestNearbyTree() throws GameActionException {
@@ -54,14 +64,32 @@ public strictfp class Gardener extends Robot {
 
   // TODO(samwho): Fix this.
   private MapLocation getTreeGap() {
+    Set<MapLocation> myTreeLocations = new HashSet();
     for (TreeInfo tree : getMyTrees()) {
-      if (!this.treeLocations.contains(tree.location)) {
-        return tree.location;
+      myTreeLocations.add(tree.location);
+    }
+
+    for (MapLocation l : this.treeLocations) {
+      if (!myTreeLocations.contains(l)) {
+        return l;
       }
     }
 
     // Should never happen
     return null;
+  }
+
+  /**
+   * Check to make sure we're not setting up camp too close to another gardener.
+   */
+  private boolean isOtherGardenerNearby() {
+    for (RobotInfo robot : rc.senseNearbyRobots()) {
+      if (robot.type == RobotType.GARDENER && robot.team == rc.getTeam()) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private void tryPlantTreeIfNeeded() throws GameActionException {
@@ -78,15 +106,20 @@ public strictfp class Gardener extends Robot {
   }
 
   private void moveToGardeningLocation() throws GameActionException {
-    Utils.debug_out("attempting to find gardening location...");
+    if (inPosition) {
+      Utils.debug_out("moveToGardeningLocation() called again");
+      return;
+    }
 
+    Utils.debug_out("attempting to find gardening location...");
     while (true) {
       // We're going to go with a hexagonal planting strategy. The idea behind
       // this is to plant 5 trees around us and then leave a gap for spawning
       // soldiers. As a result, the only condition for a gardening location at
       // the moment is enough space for our gardener and his surrounding
       // trees.
-      if (!rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), 3.03f)) {
+      if (!isOtherGardenerNearby() &&
+          !rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), 3.03f)) {
         Utils.debug_out("found gardening location!");
         break;
       }
@@ -106,6 +139,8 @@ public strictfp class Gardener extends Robot {
     float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
     this.treeLocations =
       new HashSet(getSurroundingLocations(NUM_TREES_TO_PLANT + 1, distance));
+
+    this.inPosition = true;
   }
 
   // Returns the lowest health tree in the immediate vicinity of this gardener.

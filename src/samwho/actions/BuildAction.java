@@ -1,4 +1,7 @@
-package samwho;
+package samwho.actions;
+
+import samwho.*;
+import samwho.robots.*;
 
 import battlecode.common.*;
 
@@ -43,6 +46,10 @@ public strictfp class BuildAction extends Action {
     }
 
     return rc.canBuildRobot(type, direction);
+  }
+
+  public RobotType getType() {
+    return this.type;
   }
 
   @Override
