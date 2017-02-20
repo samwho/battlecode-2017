@@ -46,7 +46,8 @@ public strictfp class BuildAction implements Comparable<BuildAction> {
 
   @Override
   public int compareTo(BuildAction other) {
-    return Integer.compare(this.priority, other.priority);
+    // Negative for descending order (higher numbers means higher priority).
+    return -Integer.compare(this.priority, other.priority);
   }
 }
 

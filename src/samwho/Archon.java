@@ -5,6 +5,7 @@ public strictfp class Archon extends Robot {
   @Override
   public void onCreate() {
     build(RobotType.GARDENER);
+    build(RobotType.GARDENER);
   }
 
   @Override

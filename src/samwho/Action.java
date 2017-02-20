@@ -16,7 +16,8 @@ public strictfp class Action implements Comparable<Action> {
 
   @Override
   public int compareTo(Action other) {
-    return Integer.compare(this.priority, other.priority);
+    // Negative for descending order (higher numbers means higher priority).
+    return -Integer.compare(this.priority, other.priority);
   }
 
   public int getPriority() {

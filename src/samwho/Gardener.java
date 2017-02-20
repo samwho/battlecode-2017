@@ -6,9 +6,13 @@ import java.util.Collections;
 import java.util.List;
 
 public strictfp class Gardener extends Robot {
+  private static final int NUM_TREES_TO_PLANT = 5;
+
+  private List<MapLocation> treeLocations;
+
   @Override
   public void onCreate() {
-    enqueue(100, () -> setUpGardeningLocation());
+    enqueue(Integer.MAX_VALUE, () -> moveToGardeningLocation());
     build(RobotType.SOLDIER);
   }
 
@@ -18,59 +22,56 @@ public strictfp class Gardener extends Robot {
   }
 
   @Override
-  public void onIdle() {
+  public void onNewTurn() {
+    enqueue(1, () -> tryPlantTreeIfNeeded());
     enqueue(0, () -> waterSaddestNearbyTree());
   }
 
   private void waterSaddestNearbyTree() throws GameActionException {
-    TreeInfo tree = getSaddestNearbyTree();
+    if (!rc.canWater()) {
+      return;
+    }
 
+    TreeInfo tree = getSaddestNearbyTree();
     if (tree == null) {
-      debug_out("no trees nearby to water");
       return;
     }
 
     if (!rc.canWater(tree.ID)) {
-      debug_out("can't water tree with ID " + tree.ID);
       return;
     }
 
     rc.water(tree.ID);
   }
 
-  private void setUpGardeningLocation() throws GameActionException {
-    moveToGardeningLocation();
+  private boolean needMoreTrees() throws GameActionException {
+    return getMyTrees().length < NUM_TREES_TO_PLANT;
+  }
 
-    int toPlant = 5;
-    float treeRadius = 1.0f;
-    float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
+  private TreeInfo[] getMyTrees() throws GameActionException {
+    return rc.senseNearbyTrees(3.0f, rc.getTeam());
+  }
 
-    debug_out("planting trees...");
+  private void tryPlantTreeIfNeeded() throws GameActionException {
+    if (!needMoreTrees()) {
+      return;
+    }
 
-    List<MapLocation> ls = getSurroundingLocations(toPlant + 1, distance);
+    for (MapLocation l : this.treeLocations) {
+      TreeInfo tree = rc.senseTreeAtLocation(l);
 
-    // Because we might not be able to plant all of our trees on the first
-    // pass (things might be in the way, or we might not be able to afford it,
-    // or we might have build cooldowns), we wrap this in a while(true) that
-    // breaks after we've planted 5 trees.
-    while (true) {
-      for (MapLocation l : ls) {
-        Direction d = rc.getLocation().directionTo(l);
-        if (rc.canPlantTree(d) && toPlant > 0) {
-          rc.plantTree(d);
-          toPlant--;
-
-          // We don't want nearby trees to die while we're trying to establish
-          // our gardening location, so make sure we water the saddest nearby
-          // tree while we have a change during setup.
-          waterSaddestNearbyTree();
-        }
+      // There is already a tree at the given location, skip.
+      if (tree != null) {
+        continue;
       }
 
-      if (toPlant == 0) {
-        debug_out("finished planting trees!");
-        break;
+      // We need to plant a tree, but were for some reason unable to.
+      Direction d = rc.getLocation().directionTo(l);
+      if (!rc.canPlantTree(d)) {
+        continue;
       }
+
+      rc.plantTree(d);
     }
   }
 
@@ -93,25 +94,30 @@ public strictfp class Gardener extends Robot {
         debug_out("moving to find gardening location");
         tryMove(randomDirection());
       }
+
+      // Can only move once per turn, no need to waste cycles.
+      Clock.yield();
     }
+
+    float treeRadius = 1.0f;
+    float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
+    this.treeLocations =
+      getSurroundingLocations(NUM_TREES_TO_PLANT + 1, distance);
   }
 
   // Returns the lowest health tree in the immediate vicinity of this gardener.
   private TreeInfo getSaddestNearbyTree() throws GameActionException {
-    float treeRadius = 1.0f;
-    float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
-
-    TreeInfo[] nearbyTrees = rc.senseNearbyTrees(distance, rc.getTeam());
-    if (nearbyTrees.length == 0) {
+    TreeInfo[] myTrees = getMyTrees();
+    if (myTrees.length == 0) {
       return null;
     }
 
     // TODO(samwho): There's probably a nicer thing we can do here with
     // Collections.min and lambdas, but I couldn't figure it out.
-    TreeInfo saddest = nearbyTrees[0];
-    for (int i = 0; i < nearbyTrees.length; i++) {
-      if (nearbyTrees[i].health < saddest.health) {
-        saddest = nearbyTrees[i];
+    TreeInfo saddest = myTrees[0];
+    for (int i = 0; i < myTrees.length; i++) {
+      if (myTrees[i].health < saddest.health) {
+        saddest = myTrees[i];
       }
     }
 
