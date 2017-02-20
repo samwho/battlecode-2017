@@ -1,24 +1,24 @@
 package samwho;
 import battlecode.common.*;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 
 public strictfp class Gardener extends Robot {
   private static final int NUM_TREES_TO_PLANT = 5;
 
-  private List<MapLocation> treeLocations;
+  private Set<MapLocation> treeLocations;
 
   @Override
   public void onCreate() {
     enqueue(Integer.MAX_VALUE, () -> moveToGardeningLocation());
-    build(RobotType.SOLDIER);
+    build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
   }
 
   @Override
   public void onBuildFinished() {
-    build(RobotType.SOLDIER);
+    build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
   }
 
   @Override
@@ -44,12 +44,24 @@ public strictfp class Gardener extends Robot {
     rc.water(tree.ID);
   }
 
-  private boolean needMoreTrees() throws GameActionException {
+  private boolean needMoreTrees() {
     return getMyTrees().length < NUM_TREES_TO_PLANT;
   }
 
-  private TreeInfo[] getMyTrees() throws GameActionException {
+  private TreeInfo[] getMyTrees() {
     return rc.senseNearbyTrees(3.0f, rc.getTeam());
+  }
+
+  // TODO(samwho): Fix this.
+  private MapLocation getTreeGap() {
+    for (TreeInfo tree : getMyTrees()) {
+      if (!this.treeLocations.contains(tree.location)) {
+        return tree.location;
+      }
+    }
+
+    // Should never happen
+    return null;
   }
 
   private void tryPlantTreeIfNeeded() throws GameActionException {
@@ -57,22 +69,12 @@ public strictfp class Gardener extends Robot {
       return;
     }
 
-    for (MapLocation l : this.treeLocations) {
-      TreeInfo tree = rc.senseTreeAtLocation(l);
-
-      // There is already a tree at the given location, skip.
-      if (tree != null) {
-        continue;
-      }
-
-      // We need to plant a tree, but were for some reason unable to.
-      Direction d = rc.getLocation().directionTo(l);
-      if (!rc.canPlantTree(d)) {
-        continue;
-      }
-
-      rc.plantTree(d);
+    Direction d = rc.getLocation().directionTo(getTreeGap());
+    if (!rc.canPlantTree(d)) {
+      return;
     }
+
+    rc.plantTree(d);
   }
 
   private void moveToGardeningLocation() throws GameActionException {
@@ -103,7 +105,7 @@ public strictfp class Gardener extends Robot {
     float treeRadius = 1.0f;
     float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
     this.treeLocations =
-      getSurroundingLocations(NUM_TREES_TO_PLANT + 1, distance);
+      new HashSet(getSurroundingLocations(NUM_TREES_TO_PLANT + 1, distance));
   }
 
   // Returns the lowest health tree in the immediate vicinity of this gardener.

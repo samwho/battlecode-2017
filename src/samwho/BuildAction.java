@@ -2,15 +2,15 @@ package samwho;
 
 import battlecode.common.*;
 
-public strictfp class BuildAction implements Comparable<BuildAction> {
+public strictfp class BuildAction extends Action {
   private Robot builder;
-  protected int priority;
   private RobotType type;
   private Direction direction;
 
-  public BuildAction(Robot builder, int p, RobotType t, Direction d) {
+  public BuildAction(Robot builder, int priority, RobotType t, Direction d) {
+    super(priority);
+
     this.builder = builder;
-    this.priority = p;
     this.type = t;
     this.direction = d;
   }
@@ -19,6 +19,7 @@ public strictfp class BuildAction implements Comparable<BuildAction> {
     this(builder, priority, type, null);
   }
 
+  @Override
   public boolean isDoable() throws GameActionException {
     RobotController rc = builder.getRobotController();
 
@@ -44,15 +45,10 @@ public strictfp class BuildAction implements Comparable<BuildAction> {
     return rc.canBuildRobot(type, direction);
   }
 
+  @Override
   public void run() throws GameActionException {
     RobotController rc = builder.getRobotController();
     rc.buildRobot(type, direction);
-  }
-
-  @Override
-  public int compareTo(BuildAction other) {
-    // Negative for descending order (higher numbers means higher priority).
-    return -Integer.compare(this.priority, other.priority);
   }
 }
 

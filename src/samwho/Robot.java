@@ -111,6 +111,9 @@ public abstract strictfp class Robot {
     return this.rc;
   }
 
+  /**
+   * Checks if the round has changed since this was last called.
+   */
   boolean isNewRound() {
     int cur = rc.getRoundNum();
     if (cur != this.round) {
@@ -131,8 +134,16 @@ public abstract strictfp class Robot {
    * Given that each robot is independent, no restrictions on the priority are
    * given. Robots are free to determine their own priorities.
    */
-  void enqueue(int priority, GameRunnable action) {
-    actionQueue.add(new Action(priority, action));
+  void enqueue(Action action) {
+    actionQueue.add(action);
+  }
+
+  void enqueue(int priority, GameRunnable runnable) {
+    actionQueue.add(new RunnableAction(priority, runnable));
+  }
+
+  void enqueue(GameRunnable runnable) {
+    actionQueue.add(new RunnableAction(0, runnable));
   }
 
   void build(int priority, RobotType type, Direction d) {
@@ -141,6 +152,10 @@ public abstract strictfp class Robot {
 
   void build(int priority, RobotType type) {
     build(priority, type, null);
+  }
+
+  void build(RobotType type, Direction d) {
+    build(BUILD_PRIORITY, type, d);
   }
 
   void build(RobotType type) {

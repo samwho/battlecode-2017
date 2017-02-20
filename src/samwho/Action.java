@@ -1,17 +1,29 @@
 package samwho;
 import battlecode.common.*;
 
-public strictfp class Action implements Comparable<Action> {
+public abstract strictfp class Action implements Comparable<Action> {
   protected int priority;
-  private GameRunnable action;
 
-  public Action(int priority, GameRunnable action) {
+  public Action(int priority) {
     this.priority = priority;
-    this.action = action;
   }
 
-  public void run() throws GameActionException {
-    this.action.run();
+  /**
+   * Do something that affects the game world.
+   *
+   * You are expected to make sure that isDoable() returns true before calling
+   * this method.
+   */
+  public abstract void run() throws GameActionException;
+
+  /**
+   * Checks if the run method will succeed or fail.
+   *
+   * There is a guarantee that this method will be called before run(), and
+   * run() will not be called until this method returns true.
+   */
+  public boolean isDoable() throws GameActionException {
+    return true;
   }
 
   @Override
