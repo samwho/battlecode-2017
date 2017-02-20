@@ -8,16 +8,18 @@ import java.util.List;
 public strictfp class Gardener extends Robot {
   @Override
   public void onCreate() {
-    enqueue(1, () -> setUpGardeningLocation());
+    enqueue(100, () -> setUpGardeningLocation());
+    build(RobotType.SOLDIER);
+  }
+
+  @Override
+  public void onBuildFinished() {
+    build(RobotType.SOLDIER);
   }
 
   @Override
   public void onIdle() {
     enqueue(0, () -> waterSaddestNearbyTree());
-
-    if (rc.getTeamBullets() >= RobotType.SOLDIER.bulletCost) {
-      enqueue(1, () -> trySpawn(RobotType.SOLDIER));
-    }
   }
 
   private void waterSaddestNearbyTree() throws GameActionException {

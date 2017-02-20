@@ -4,12 +4,7 @@ import battlecode.common.*;
 public strictfp class Archon extends Robot {
   @Override
   public void onCreate() {
-    enqueue(1, () -> {
-      waitUntil(() -> rc.isBuildReady());
-      waitUntil(() -> rc.getTeamBullets() >= RobotType.GARDENER.bulletCost);
-
-      trySpawn(RobotType.GARDENER);
-    });
+    build(RobotType.GARDENER);
   }
 
   @Override

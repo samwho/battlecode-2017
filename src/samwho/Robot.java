@@ -8,10 +8,15 @@ import java.util.PriorityQueue;
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
-  private static final int MAX_IDLE_PER_TURN = 3;
+  private static final int MAX_IDLE_PER_TURN = 2;
+  private static final int BUILD_PRIORITY = 127;
 
   protected RobotController rc;
-  private PriorityQueue<Action> actions = new PriorityQueue<>();
+  private PriorityQueue<Action> actionQueue = new PriorityQueue<>();
+  private PriorityQueue<BuildAction> buildQueue = new PriorityQueue<>();
+
+  // For checking when the round has changed.
+  private int round = 0;
 
   /**
    * Only to be called by RobotFactory.
@@ -45,30 +50,46 @@ public abstract strictfp class Robot {
   public void onNewTurn() { }
 
   /**
+   * Called after a build has finished.
+   *
+   * The intended purpose of this is for you to maintain a clean stream of
+   * robots to build.
+   */
+  public void onBuildFinished() { }
+
+  /**
    * Starts the infinite loop of robot behaviour.
    */
   public void run() {
-    onCreate();
-
-    int round = rc.getRoundNum();
     int idleCount = 0;
+
+    onCreate();
 
     while (true) {
       // We're in a new round now, so we can reset the idle counter.
-      if (rc.getRoundNum() != round) {
-        round = rc.getRoundNum();
+      if (isNewRound()) {
         idleCount = 0;
-
         onNewTurn();
+
+        try {
+          if (buildQueue.size() > 0 && buildQueue.peek().isDoable()) {
+              buildQueue.poll().run();
+              onBuildFinished();
+          }
+        } catch (GameActionException e) {
+          e.printStackTrace();
+        }
       }
 
-      Action action = actions.poll();
+      Action action = actionQueue.poll();
       if (action == null) {
         // In order to not have our robots spinning doing nothing and consuming
         // the max number of bytecodes per turn, we have this yield after
         // MAX_IDLE_PER_TURN idle calls.
         if (idleCount >= MAX_IDLE_PER_TURN) {
+          debug_out("hit max number of onIdle() calls this turn, yielding");
           Clock.yield();
+          continue;
         }
 
         debug_out("no actions pending, calling onIdle()");
@@ -88,6 +109,20 @@ public abstract strictfp class Robot {
 
       debug_out("finished running action, relooping");
     }
+  }
+
+  public RobotController getRobotController() {
+    return this.rc;
+  }
+
+  boolean isNewRound() {
+    int cur = rc.getRoundNum();
+    if (cur != this.round) {
+      this.round = cur;
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -111,7 +146,19 @@ public abstract strictfp class Robot {
    * given. Robots are free to determine their own priorities.
    */
   void enqueue(int priority, GameRunnable action) {
-    actions.add(new Action(priority, action));
+    actionQueue.add(new Action(priority, action));
+  }
+
+  void build(int priority, RobotType type, Direction d) {
+    buildQueue.add(new BuildAction(this, priority, type, d));
+  }
+
+  void build(int priority, RobotType type) {
+    build(priority, type, null);
+  }
+
+  void build(RobotType type) {
+    build(BUILD_PRIORITY, type);
   }
 
   /**
@@ -156,7 +203,7 @@ public abstract strictfp class Robot {
    *
    * If no such direction exists, returns null.
    */
-  Direction getUnoccupiedBuildDirectionFor(RobotType other)
+  public Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
     float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
     for (MapLocation l : getSurroundingLocations(8, distance)) {
