@@ -76,14 +76,16 @@ public strictfp class Gardener extends Robot {
   }
 
   private void moveToGardeningLocation() throws GameActionException {
+    Utils.debug_out("attempting to find gardening location...");
+
     while (true) {
       // We're going to go with a hexagonal planting strategy. The idea behind
       // this is to plant 5 trees around us and then leave a gap for spawning
       // soldiers. As a result, the only condition for a gardening location at
       // the moment is enough space for our gardener and his surrounding
       // trees.
-      if (!rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), 3)) {
-        debug_out("found gardening location!");
+      if (!rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), 3.03f)) {
+        Utils.debug_out("found gardening location!");
         break;
       }
 
@@ -91,7 +93,6 @@ public strictfp class Gardener extends Robot {
       // on randomly moving around until we stumble upon a valid gardening
       // location.
       while (!rc.hasMoved()) {
-        debug_out("moving to find gardening location");
         tryMove(randomDirection());
       }
 

@@ -1,4 +1,5 @@
 package samwho;
+
 import battlecode.common.*;
 
 public strictfp class BuildAction implements Comparable<BuildAction> {
@@ -25,10 +26,14 @@ public strictfp class BuildAction implements Comparable<BuildAction> {
       direction = builder.getUnoccupiedBuildDirectionFor(type);
 
       if (direction == null) {
+        Utils.debug_out(
+            "can't build " + type.name() + ", unable to find location");
+
         return false;
       }
 
       if (!rc.canBuildRobot(type, direction)) {
+        Utils.debug_out("can't build " + type.name());
         direction = null;
         return false;
       }

@@ -72,9 +72,11 @@ public abstract strictfp class Robot {
         onNewTurn();
 
         try {
-          if (buildQueue.size() > 0 && buildQueue.peek().isDoable()) {
+          if (buildQueue.size() > 0) {
+            if (buildQueue.peek().isDoable()) {
               buildQueue.poll().run();
               onBuildFinished();
+            }
           }
         } catch (GameActionException e) {
           e.printStackTrace();
@@ -87,18 +89,14 @@ public abstract strictfp class Robot {
         // the max number of bytecodes per turn, we have this yield after
         // MAX_IDLE_PER_TURN idle calls.
         if (idleCount >= MAX_IDLE_PER_TURN) {
-          debug_out("hit max number of onIdle() calls this turn, yielding");
           Clock.yield();
           continue;
         }
 
-        debug_out("no actions pending, calling onIdle()");
         onIdle();
         idleCount++;
         continue;
       }
-
-      debug_out("got action, attempting to execute...");
 
       try {
         action.run();
@@ -106,8 +104,6 @@ public abstract strictfp class Robot {
         // TODO(samwho): Is it best to die instead?
         e.printStackTrace();
       }
-
-      debug_out("finished running action, relooping");
     }
   }
 
@@ -123,16 +119,6 @@ public abstract strictfp class Robot {
     }
 
     return false;
-  }
-
-  /**
-   * Debug-only output.
-   *
-   * Will be stripped from tournament and scrimming games, and won't count
-   * towards the bytecode limit.
-   */
-  void debug_out(String message) {
-    System.out.println(message);
   }
 
   /**
@@ -168,25 +154,25 @@ public abstract strictfp class Robot {
    * returns.
    */
   void waitUntil(GamePredicate predicate) throws GameActionException {
-    debug_out("waitUntil called...");
+    Utils.debug_out("waitUntil called...");
 
     while (!predicate.test()) {
-      debug_out("condition not met, yielding");
+      Utils.debug_out("condition not met, yielding");
       Clock.yield();
     }
 
-    debug_out("condition met, continuing");
+    Utils.debug_out("condition met, continuing");
   }
 
   protected boolean trySpawn(RobotType type) throws GameActionException {
     Direction d = getUnoccupiedBuildDirectionFor(type);
     if (d == null) {
-      debug_out("wasn't able to find good direction to spawn " + type.name());
+      Utils.debug_out("wasn't able to find good direction to spawn " + type.name());
       return false;
     }
 
     if (!rc.canBuildRobot(type, d)) {
-      debug_out("unable to spawn " + type.name() + " at " + d);
+      Utils.debug_out("unable to spawn " + type.name() + " at " + d);
       return false;
     }
 
@@ -206,7 +192,7 @@ public abstract strictfp class Robot {
   public Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
     float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
-    for (MapLocation l : getSurroundingLocations(8, distance)) {
+    for (MapLocation l : getSurroundingLocations(6, distance)) {
       if (!rc.isCircleOccupied(l, other.bodyRadius)) {
         return rc.getLocation().directionTo(l);
       }
