@@ -124,6 +124,43 @@ public abstract strictfp class Robot {
   }
 
   /**
+   * Check for friendly robots between me and another robot.
+   *
+   * Intended use is for avoiding friendly fire.
+   */
+  boolean anyFriendliesBetweenMeAnd(RobotInfo other)
+    throws GameActionException {
+    Team friendly = rc.getTeam();
+    Team enemy = friendly.opponent();
+    MapLocation me = rc.getLocation();
+    Direction d = me.directionTo(other.location);
+
+    int distance = (int)me.distanceTo(other.location);
+    for (int i = 1; i < distance; i++) {
+      MapLocation check = me.add(d, i);
+      RobotInfo[] robots = rc.senseNearbyRobots(check, 1.0f, friendly);
+
+      for (RobotInfo robot : robots) {
+      // No robot at current check location? Continue to next iteration.
+        if (robot == null) {
+          continue;
+        }
+
+        // We found a robot but it's actually the robot we're looking for other
+        // robots between, so we just return false early.
+        if (robot.ID == other.ID) {
+          return false;
+        }
+
+        // Above checks failed, which means we found a friendly.
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Checks if the round has changed since this was last called.
    */
   boolean isNewRound() {
