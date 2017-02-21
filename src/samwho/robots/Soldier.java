@@ -23,6 +23,7 @@ public strictfp class Soldier extends Robot {
       }
 
       // Move randomly
+      // TODO(samwho): make them stop walking into their own bullets.
       tryMove(randomDirection());
     });
   }
