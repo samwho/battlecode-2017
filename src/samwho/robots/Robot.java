@@ -15,11 +15,30 @@ public abstract strictfp class Robot {
   private static final int BUILD_PRIORITY = 127;
 
   protected RobotController rc;
+
+  /**
+   * The purpose of the action queue is for you to decide how your robots are
+   * going to move and attack in a given turn.
+   *
+   * Every turn, the highest priority action that's possible this turn will run.
+   * Possibility is determined by calling an Actions isDoable method. By
+   * default, this returns true. It is intended for you to subclass Action and
+   * implement this method. See BuildAction for an example.
+   */
   private PriorityQueue<Action> actionQueue = new PriorityQueue<>();
+
+  /**
+   * The purpose of the build queue is to hold units to build until it's
+   * possible to build them.
+   *
+   * When it is possible to build a unit, it will be build. The highest priority
+   * build order takes precedence.
+   */
   private PriorityQueue<BuildAction> buildQueue = new PriorityQueue<>();
 
   // For checking when the round has changed.
   private int round = 0;
+  private int bytecodesLeft = 0;
 
   /**
    * Only to be called by RobotFactory.
@@ -58,58 +77,120 @@ public abstract strictfp class Robot {
    * The intended purpose of this is for you to maintain a clean stream of
    * robots to build.
    */
-  public void onBuildFinished(RobotType type) { }
+  public void onBuildFinished(BuildAction ba) { }
+
+  /**
+   * Called after an action finishes.
+   *
+   * Does not include BuildActions, as they're done on a separate build queue.
+   */
+  public void onActionFinished(Action a) { }
 
   /**
    * Starts the infinite loop of robot behaviour.
+   *
+   * After each major chunk of work (e.g. checking the build queue or calling
+   * onIdle), we check if the turn has rolled over and if it has we jump back up
+   * to the start of the order of operations.
    */
   public void run() {
-    int idleCount = 0;
+    // To set up counters
+    isNewRound();
 
     onCreate();
 
     while (true) {
-      // We're in a new round now, so we can reset the idle counter.
       if (isNewRound()) {
-        idleCount = 0;
-        onNewTurn();
-
-        try {
-          if (buildQueue.size() > 0) {
-            if (buildQueue.peek().isDoable()) {
-              BuildAction ba = buildQueue.poll();
-              ba.run();
-
-              onBuildFinished(ba.getType());
-            }
-          }
-        } catch (GameActionException e) {
-          e.printStackTrace();
-        }
-      }
-
-      Action action = actionQueue.poll();
-      if (action == null) {
-        // In order to not have our robots spinning doing nothing and consuming
-        // the max number of bytecodes per turn, we have this yield after
-        // MAX_IDLE_PER_TURN idle calls.
-        if (idleCount >= MAX_IDLE_PER_TURN) {
-          Clock.yield();
-          continue;
-        }
-
-        onIdle();
-        idleCount++;
         continue;
       }
 
-      try {
-        action.run();
-      } catch (GameActionException e) {
-        // TODO(samwho): Is it best to die instead?
-        e.printStackTrace();
+      onNewTurn();
+
+      if (isNewRound()) {
+        continue;
+      }
+
+      handleBuildPhase();
+
+      if (isNewRound()) {
+        continue;
+      }
+
+      handleActionPhase();
+
+      if (isNewRound()) {
+        continue;
+      }
+
+      onIdle();
+
+      if (isNewRound()) {
+        continue;
+      }
+
+      // If we have time spare, yield it for now. Later we might be able to do
+      // something more useful with this time.
+      Clock.yield();
+    }
+  }
+
+  /**
+   * Searches the action queue for the highest priority action that can be done
+   * right now and does it.
+   *
+   * This method is also responsible for calling the onActionFinished handler.
+   */
+  private void handleActionPhase() {
+    try {
+      runHighestPriorityFrom(actionQueue);
+    } catch (GameActionException e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Searches the build queue for the highest priority build that can be build
+   * right now and builds it.
+   *
+   * This method is also responsible for calling the onBuildFinished handler.
+   */
+  private void handleBuildPhase() {
+    try {
+      BuildAction ba = (BuildAction)runHighestPriorityFrom(buildQueue);
+
+      if (ba != null) {
+        onBuildFinished(ba);
+      }
+    } catch (GameActionException e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Searches a PriorityQueue for the highest priority action that can be done
+   * and then runs it.
+   *
+   * Also takes responsibility for removing that action from the queue.
+   */
+  private <T extends Action> T runHighestPriorityFrom(PriorityQueue<T> queue)
+    throws GameActionException {
+
+    T toDo = null;
+
+    for (T a : queue) {
+      if (a.isDoable()) {
+        toDo = a;
+        break;
       }
     }
+
+    if (toDo != null) {
+      queue.remove(toDo);
+      toDo.run();
+      return toDo;
+    }
+
+    return null;
   }
 
   public RobotController getRobotController() {

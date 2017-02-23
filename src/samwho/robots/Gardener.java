@@ -1,6 +1,7 @@
 package samwho.robots;
 
 import samwho.*;
+import samwho.actions.*;
 
 import battlecode.common.*;
 
@@ -33,7 +34,7 @@ public strictfp class Gardener extends Robot {
   }
 
   @Override
-  public void onBuildFinished(RobotType type) {
+  public void onBuildFinished(BuildAction ba) {
     build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
   }
 

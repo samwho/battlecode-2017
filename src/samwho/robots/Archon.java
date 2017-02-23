@@ -1,6 +1,7 @@
 package samwho.robots;
 
 import samwho.*;
+import samwho.actions.*;
 
 import battlecode.common.*;
 
@@ -14,8 +15,8 @@ public strictfp class Archon extends Robot {
   }
 
   @Override
-  public void onBuildFinished(RobotType type) {
-    if (type == RobotType.GARDENER) {
+  public void onBuildFinished(BuildAction ba) {
+    if (ba.getType() == RobotType.GARDENER) {
       this.gardenerCount++;
     }
   }
