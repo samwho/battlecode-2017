@@ -1,5 +1,7 @@
 package samwho.robots;
 
+import samwho.*;
+
 import battlecode.common.*;
 
 public strictfp class Archon extends Robot {
@@ -34,7 +36,7 @@ public strictfp class Archon extends Robot {
       }
 
       // Move randomly
-      tryMove(randomDirection());
+      tryMove(Utils.randomDirection());
 
       // Broadcast archon's location for other robots on the team to
       // know

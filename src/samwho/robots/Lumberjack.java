@@ -1,5 +1,7 @@
 package samwho.robots;
 
+import samwho.*;
+
 import battlecode.common.*;
 
 public strictfp class Lumberjack extends Robot {
@@ -34,7 +36,7 @@ public strictfp class Lumberjack extends Robot {
       }
 
       // Move Randomly
-      tryMove(randomDirection());
+      tryMove(Utils.randomDirection());
     });
   }
 }

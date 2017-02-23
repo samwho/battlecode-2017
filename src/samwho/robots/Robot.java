@@ -282,7 +282,7 @@ public abstract strictfp class Robot {
     List<MapLocation> locations = new ArrayList<>(count);
 
     for (int i = 0; i < count; i++) {
-      Direction d = new Direction(deg2rad(currentAngle));
+      Direction d = new Direction(Utils.deg2rad(currentAngle));
       locations.add(rc.getLocation().add(d, distance));
       currentAngle += step;
     }
@@ -290,25 +290,35 @@ public abstract strictfp class Robot {
     return locations;
   }
 
-  /**
-   * Convert degrees to radians.
-   */
-  float deg2rad(float deg) {
-    return deg * ((float)Math.PI / 180.0f);
+  boolean isMoveOntoBullet(MapLocation l) {
+    RobotType me = rc.getType();
+
+    for (BulletInfo bullet : rc.senseNearbyBullets(me.strideRadius)) {
+      if (bulletWillHitMeAt(bullet, l)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
-  /**
-   * Convert radians to degrees.
-   */
-  float rad2deg(float rad) {
-    return rad * (180.0f * (float)Math.PI);
+  boolean bulletWillHitMeAt(BulletInfo b, MapLocation l) {
+    return Utils.lineIntersectsCircle(b.location,
+        b.location.add(b.dir, b.speed), l, rc.getType().bodyRadius);
   }
 
-  /**
-   * Returns a random Direction.
-   */
-  Direction randomDirection() {
-    return new Direction(deg2rad((float)Math.random() * 360.0f));
+  Direction randomDirectionAvoidingBullets() {
+    Direction d;
+    int maxAttempts = 32;
+
+    for (int i = 0; i < maxAttempts; i++) {
+      d = Utils.randomDirection();
+      if (!isMoveOntoBullet(rc.getLocation().add(d))) {
+        return d;
+      }
+    }
+
+    return null;
   }
 
   /**

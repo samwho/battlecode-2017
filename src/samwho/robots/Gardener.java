@@ -147,7 +147,7 @@ public strictfp class Gardener extends Robot {
       // on randomly moving around until we stumble upon a valid gardening
       // location.
       while (!rc.hasMoved()) {
-        tryMove(randomDirection());
+        tryMove(Utils.randomDirection());
       }
 
       // Can only move once per turn, no need to waste cycles.
