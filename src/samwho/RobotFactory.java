@@ -15,7 +15,7 @@ public strictfp class RobotFactory {
     new HashMap<RobotType, Supplier<Robot>>() {{
 
     put(RobotType.ARCHON,     () -> new Archon());
-    put(RobotType.GARDENER,   () -> new Gardener());
+    put(RobotType.GARDENER,   () -> new HexagonalSpawnerGardener());
     put(RobotType.SOLDIER,    () -> new Soldier());
     put(RobotType.LUMBERJACK, () -> new Lumberjack());
   }};
