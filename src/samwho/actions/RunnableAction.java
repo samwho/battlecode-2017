@@ -14,8 +14,8 @@ import battlecode.common.*;
 public strictfp class RunnableAction extends Action {
   private GameRunnable runnable;
 
-  public RunnableAction(int priority, GameRunnable runnable) {
-    super(priority);
+  public RunnableAction(int priority, String name, GameRunnable runnable) {
+    super(priority, name);
     this.runnable = runnable;
   }
 

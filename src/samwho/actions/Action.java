@@ -8,9 +8,11 @@ import battlecode.common.*;
 public abstract strictfp class Action implements Comparable<Action> {
   protected int priority;
   private GamePredicate shouldCancel;
+  private String name;
 
-  public Action(int priority) {
+  public Action(int priority, String name) {
     this.priority = priority;
+    this.name = name;
     this.shouldCancel = () -> false;
   }
 
@@ -68,5 +70,14 @@ public abstract strictfp class Action implements Comparable<Action> {
 
   public int getPriority() {
     return this.priority;
+  }
+
+  public String getName() {
+    return this.name;
+  }
+
+  @Override
+  public String toString() {
+    return this.getName();
   }
 }

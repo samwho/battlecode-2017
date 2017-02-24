@@ -53,11 +53,14 @@ public strictfp class Utils {
   }
 
   /**
-   * Gets a list surrounding locations that could fit a circle of given radius
-   * and distance away from you.
+   * Gets a non-overlapping list surrounding locations that could fit a circle
+   * of given radius and distance away from you.
    *
    * If the circles do not fit exactly, they will be evenly spaced around your
    * location.
+   *
+   * This method is suited to trying to find locations to spawn multiple
+   * non-overlapping things.
    *
    * @param center the central location to spread the points around
    * @param radius the radius of the circles surrounding the center
@@ -71,11 +74,22 @@ public strictfp class Utils {
     double wedgeAngle = Math.asin(opposite / hypotenuse) * 2;
     int numWedges = (int)((Math.PI * 2) / wedgeAngle);
 
-    double step = (Math.PI * 2) / numWedges;
-    double currentAngle = offset;
-    List<MapLocation> locations = new ArrayList<>(numWedges);
+    return getNSurroundingCircles(center, numWedges, distance, offset);
+  }
 
-    for (int i = 0; i < numWedges; i++) {
+  /**
+   * Gets a given number of equally spaced locations a given distance away from
+   * a given point.
+   *
+   * Useful for scanning for a location to build a single thing.
+   */
+  public static List<MapLocation> getNSurroundingCircles(MapLocation center,
+      int count, float distance, float offset) {
+    double step = (Math.PI * 2) / count;
+    double currentAngle = offset;
+    List<MapLocation> locations = new ArrayList<>(count);
+
+    for (int i = 0; i < count; i++) {
       Direction d = new Direction((float)currentAngle);
       locations.add(center.add(d, distance));
       currentAngle += step;
@@ -90,6 +104,14 @@ public strictfp class Utils {
   public static List<MapLocation> getSurroundingCircles(MapLocation center,
       float radius, float distance) {
     return getSurroundingCircles(center, radius, distance, 0.0f);
+  }
+
+  /**
+   * See getNSurroundingCircles(MapLocation, int, float, float).
+   */
+  public static List<MapLocation> getNSurroundingCircles(MapLocation center,
+      int count, float distance) {
+    return getNSurroundingCircles(center, count, distance, 0.0f);
   }
 
   /**

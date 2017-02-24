@@ -6,40 +6,57 @@ import samwho.actions.*;
 import battlecode.common.*;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public strictfp class HexagonalSpawnerGardener extends Gardener {
-  private static final int NUM_TREES_TO_PLANT = 5;
-  private static final int NUM_SPACES_AROUND_ME = NUM_TREES_TO_PLANT + 1;
-
+  private MapLocation gap;
   private Set<MapLocation> treeLocations;
   private boolean inPosition = false;
+  private int treesPlanted = 0;
+  private int treesScheduled = 0;
 
   @Override
   public void onCreate() {
-    run(() -> {
-      moveToGardeningLocation();
+    run("onCreate", () -> moveToPotentialGardeningLocation());
+  }
 
-      int i = 0;
-      for (MapLocation l : treeLocations) {
-        Direction d = rc.getLocation().directionTo(l);
+  @Override
+  public void onMoveFinished(MoveAction ma) {
+    // Still mid-way through a multi-round move.
+    if (!ma.reachedDestination()) {
+      return;
+    }
 
-        // If we're on the last of the tree planting locations, don't plan a
-        // tree. Instead, save the space as a spawning location.
-        if (i == NUM_TREES_TO_PLANT) {
-          // Kick off the build loop.
-          build(RobotType.SOLDIER, d);
-          break;
-        }
-
-        // TODO(samwho): cancel?
-        plant(Integer.MAX_VALUE, d);
-
-        i++;
+    run("onMoveFinished", () -> {
+      if (!isGoodLocation(rc.getLocation())) {
+        moveToPotentialGardeningLocation();
+        return;
       }
+
+      float treeRadius = 1.0f;
+      float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
+
+      List<MapLocation> sc = getSurroundingCircles(treeRadius, distance);
+      this.gap = sc.remove(0); // for spawning out of
+      this.treeLocations = new HashSet(sc);
+      this.inPosition = true;
+
+      for (MapLocation l : this.treeLocations) {
+        // TODO(samwho): cancel?
+        plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
+        treesScheduled++;
+      }
+
+      build(RobotType.SOLDIER, rc.getLocation().directionTo(this.gap));
     });
+  }
+
+  @Override
+  public void onTreePlanted(PlantTreeAction pta) {
+    treesPlanted++;
   }
 
   @Override
@@ -50,21 +67,33 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
   @Override
   public void onNewRound(int round) {
     if (inPosition) {
-      run(() -> {
-        tryPlantTreeIfNeeded();
-        waterSaddestNearbyTree();
-      });
+      run("water sad trees", () -> waterSaddestNearbyTree());
+
+      if (treesPlanted == treesScheduled) {
+        run("replace missing trees", () -> {
+          if (isMissingTrees()) {
+            plantMissingTrees();
+          }
+        });
+      }
     }
   }
 
-  private boolean needMoreTrees() {
-    return getMyTrees().length < NUM_TREES_TO_PLANT;
-  }
-
   private TreeInfo[] getMyTrees() {
-    return rc.senseNearbyTrees(3.0f, rc.getTeam());
+    return rc.senseNearbyTrees(gardenRadius(), rc.getTeam());
   }
 
+  private boolean isMissingTrees() throws GameActionException {
+    for (MapLocation l : this.treeLocations) {
+      if (rc.senseTreeAtLocation(l) == null) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /*
   private MapLocation getTreeGap() {
     Set<MapLocation> myTreeLocations = new HashSet<>();
     for (TreeInfo tree : getMyTrees()) {
@@ -82,78 +111,53 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
     // Should never happen
     return null;
   }
+  */
 
-  /**
-   * Check to make sure we're not setting up camp too close to another gardener.
-   */
-  private boolean isOtherGardenerNearby() {
-    for (RobotInfo robot : rc.senseNearbyRobots()) {
-      if (robot.type == RobotType.GARDENER && robot.team == rc.getTeam()) {
-        return true;
+  private void plantMissingTrees() throws GameActionException {
+    for (MapLocation l : this.treeLocations) {
+      if (rc.senseTreeAtLocation(l) == null) {
+        plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
+        treesScheduled++;
       }
     }
-
-    return false;
   }
 
-  private void tryPlantTreeIfNeeded() throws GameActionException {
-    if (!needMoreTrees()) {
-      return;
-    }
-
-    Direction d = rc.getLocation().directionTo(getTreeGap());
-    if (!rc.canPlantTree(d)) {
-      return;
-    }
-
-    rc.plantTree(d);
+  private boolean isGoodLocation(MapLocation l) throws GameActionException {
+    return rc.onTheMap(l, gardenRadius()) &&
+      !rc.isCircleOccupiedExceptByThisRobot(l, gardenRadius());
   }
 
-  private boolean isGoodLocation() throws GameActionException {
+  private float gardenRadius() {
     float treeRadius = 1.00f;
     float myRadius = rc.getType().bodyRadius;
-    float buffer = 0.5f; // so we don't set up too close to walls
+    float buffer = 1.0f; // so we don't set up too close to walls and whatnot
 
-    float radius = (2 * treeRadius) + myRadius + buffer;
-    return !rc.isCircleOccupiedExceptByThisRobot(rc.getLocation(), radius) &&
-      !isOtherGardenerNearby();
+    return (2 * treeRadius) + myRadius + buffer;
   }
 
-  private void moveToGardeningLocation() throws GameActionException {
+  private void moveToPotentialGardeningLocation() throws GameActionException {
     if (inPosition) {
-      Utils.debug_out("moveToGardeningLocation() called again");
-      return;
+      throw new GameActionException(null,
+          "moveToPotentialGardeningLocation() called after in position");
     }
 
-    Utils.debug_out("attempting to find gardening location...");
-    while (true) {
-      // We're going to go with a hexagonal planting strategy. The idea behind
-      // this is to plant 5 trees around us and then leave a gap for spawning
-      // soldiers. As a result, the only condition for a gardening location at
-      // the moment is enough space for our gardener and his surrounding
-      // trees.
-      if (isGoodLocation()) {
-        Utils.debug_out("found gardening location!");
-        break;
-      }
+    float distance = rc.getType().sensorRadius - gardenRadius() - 0.01f;
+    List<MapLocation> potentialSpots = getNSurroundingCircles(12, distance);
 
-      // TODO(samwho): Improve pathing here. At the moment we've just settled
-      // on randomly moving around until we stumble upon a valid gardening
-      // location.
-      while (!rc.hasMoved()) {
-        tryMove(Utils.randomDirection());
+    for (MapLocation l : potentialSpots) {
+      if (isGoodLocation(l)) {
+        Utils.debug_out("found possible good location: " + l);
+        moveTo(l);
+        return;
       }
-
-      // Can only move once per turn, no need to waste cycles.
-      Clock.yield();
     }
 
-    float treeRadius = 1.0f;
-    float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
-    this.treeLocations =
-      new HashSet(getSurroundingCircles(treeRadius, distance));
+    // Nothing good nearby? Run around like a nob.
+    MapLocation l =
+      rc.getLocation().add(Utils.randomDirection(), rc.getType().strideRadius);
 
-    this.inPosition = true;
+    Utils.debug_out("no good locations, moving randomly to: " + l);
+    moveTo(l);
   }
 
   /**

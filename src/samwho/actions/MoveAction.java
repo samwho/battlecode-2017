@@ -9,11 +9,14 @@ import battlecode.common.*;
  * An action for moving to a location over multiple turns.
  */
 public strictfp class MoveAction extends Action {
+  private static final float TOLERANCE = 0.001f;
+
   private Robot mover;
   private MapLocation destination;
+  private boolean reachedDestination = false;
 
   public MoveAction(int priority, Robot mover, MapLocation destination) {
-    super(priority);
+    super(priority, "move to " + destination);
 
     this.mover = mover;
     this.destination = destination;
@@ -28,9 +31,14 @@ public strictfp class MoveAction extends Action {
   public void run() throws GameActionException {
     RobotController rc = mover.getRobotController();
 
+    if (!rc.onTheMap(destination, rc.getType().bodyRadius)) {
+      throw new GameActionException(null,
+          "asked to move somewhere that robot cannot physically occupy");
+    }
+
     MapLocation myLocation = rc.getLocation();
-    if (myLocation.equals(destination)) {
-      // Destination reached! \o/
+    if (myLocation.distanceTo(destination) < TOLERANCE) {
+      this.reachedDestination = true;
       return;
     }
 
@@ -47,5 +55,13 @@ public strictfp class MoveAction extends Action {
     // More movement may need to be done, so re-queue the move action. This is
     // how we facilitate multi-turn movement.
     mover.enqueue(this);
+  }
+
+  /**
+   * Because move actions can span multiple turns, this is used to signify
+   * whether we got to our destination on this turn.
+   */
+  public boolean reachedDestination() {
+    return this.reachedDestination;
   }
 }

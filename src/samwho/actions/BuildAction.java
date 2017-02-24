@@ -14,7 +14,7 @@ public strictfp class BuildAction extends Action {
   private Direction direction;
 
   public BuildAction(Robot builder, int priority, RobotType t, Direction d) {
-    super(priority);
+    super(priority, "build " + t);
 
     this.builder = builder;
     this.type = t;

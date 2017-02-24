@@ -30,7 +30,7 @@ public strictfp class Archon extends Robot {
 
   @Override
   public void onIdle() {
-    run(() -> {
+    run("onIdle", () -> {
       if (rc.hasMoved()) {
         Clock.yield();
         return;

@@ -12,6 +12,8 @@ import java.util.PriorityQueue;
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
+  private static final int STATUS_INTERVAL = 100;
+
   private static final int DEFAULT_PRIORITY = 0;
   private static final int DEFAULT_RUN_PRIORITY = 0;
   private static final int DEFAULT_BUILD_PRIORITY = 0;
@@ -70,6 +72,11 @@ public abstract strictfp class Robot {
   public void onBuildFinished(BuildAction ba) { }
 
   /**
+   * Called after a MoveAction has finished running.
+   */
+  public void onMoveFinished(MoveAction ma) { }
+
+  /**
    * Called after an Action has finished running.
    *
    * This may be called in conjunction with the more specific handlers. Use
@@ -91,6 +98,11 @@ public abstract strictfp class Robot {
 
     while (true) {
       resetRoundCounters();
+
+      if (this.round % STATUS_INTERVAL == 0) {
+        statusReport();
+      }
+
       onNewRound(this.round);
 
       if (isNewRound()) {
@@ -115,6 +127,15 @@ public abstract strictfp class Robot {
     }
   }
 
+  private void statusReport() {
+    Utils.debug_out("--- begin status report ---");
+    Utils.debug_out("actionQueue size: " + actionQueue.size());
+    for (Action a : actionQueue) {
+      Utils.debug_out("  - " + a.getName());
+    }
+    Utils.debug_out("--- end status report ---");
+  }
+
   /**
    * Searches the action queue for the highest priority action that can be done
    * right now and does it. Continues to do this until either the robot is
@@ -125,20 +146,29 @@ public abstract strictfp class Robot {
    */
   private void handleActionPhase() throws GameActionException {
     while (canDoAnything() && !isNewRound()) {
+      Utils.debug_out("searching for doable actions this turn...");
       Action a = getHighestPriorityDoableActionFrom(actionQueue);
       if (a == null) {
+        Utils.debug_out("no doable actions left this turn");
         break;
       }
 
+      Utils.debug_out("found action: " + a);
+
       if (a.shouldCancel()) {
+        Utils.debug_out("action cancelled");
         continue;
       }
 
+      Utils.debug_out("running action: " + a);
       a.run();
 
       // Run callbacks.
+      Utils.debug_out("running callbacks for: " + a);
       if (a instanceof BuildAction) {
         onBuildFinished((BuildAction)a);
+      } else if (a instanceof MoveAction) {
+        onMoveFinished((MoveAction)a);
       }
 
       // Default callback, always called.
@@ -267,13 +297,13 @@ public abstract strictfp class Robot {
     return actionQueue.add(action) ? action : null;
   }
 
-  public RunnableAction run(int priority, GameRunnable runnable) {
-    RunnableAction a = new RunnableAction(priority, runnable);
+  public RunnableAction run(int priority, String name, GameRunnable runnable) {
+    RunnableAction a = new RunnableAction(priority, name, runnable);
     return enqueue(a);
   }
 
-  public RunnableAction run(GameRunnable runnable) {
-    return run(DEFAULT_RUN_PRIORITY, runnable);
+  public RunnableAction run(String name, GameRunnable runnable) {
+    return run(DEFAULT_RUN_PRIORITY, name, runnable);
   }
 
   public BuildAction build(int priority, RobotType type, Direction d) {
@@ -356,6 +386,15 @@ public abstract strictfp class Robot {
     return Utils.getSurroundingCircles(rc.getLocation(), radius, distance);
   }
 
+  /**
+   * Gets a list N surrounding locations around this unit.
+   *
+   * See Utils.getNSurroundingCircles.
+   */
+  List<MapLocation> getNSurroundingCircles(int count, float distance) {
+    return Utils.getNSurroundingCircles(rc.getLocation(), count, distance);
+  }
+
   boolean isMoveOntoBullet(MapLocation l) {
     RobotType me = rc.getType();
 
@@ -428,7 +467,7 @@ public abstract strictfp class Robot {
     throws GameActionException {
     // First, try intended direction.
     if (rc.canMove(dir, distance)) {
-      rc.move(dir);
+      rc.move(dir, distance);
       return true;
     }
 
