@@ -2,6 +2,9 @@ package samwho;
 
 import battlecode.common.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public strictfp class Utils {
   /**
    * Debug-only output.
@@ -50,24 +53,50 @@ public strictfp class Utils {
   }
 
   /**
-   * Convert degrees to radians.
+   * Gets a list surrounding locations that could fit a circle of given radius
+   * and distance away from you.
+   *
+   * If the circles do not fit exactly, they will be evenly spaced around your
+   * location.
+   *
+   * @param center the central location to spread the points around
+   * @param radius the radius of the circles surrounding the center
+   * @param distance how far away the points should be
+   * @param offset the offset, in radians, to start at
    */
-  public static float deg2rad(float deg) {
-    return deg * ((float)Math.PI / 180.0f);
+  public static List<MapLocation> getSurroundingCircles(MapLocation center,
+      float radius, float distance, float offset) {
+    double opposite = (double)radius;
+    double hypotenuse = (double)distance;
+    double wedgeAngle = Math.asin(opposite / hypotenuse) * 2;
+    int numWedges = (int)((Math.PI * 2) / wedgeAngle);
+
+    double step = (Math.PI * 2) / numWedges;
+    double currentAngle = offset;
+    List<MapLocation> locations = new ArrayList<>(numWedges);
+
+    for (int i = 0; i < numWedges; i++) {
+      Direction d = new Direction((float)currentAngle);
+      locations.add(center.add(d, distance));
+      currentAngle += step;
+    }
+
+    return locations;
   }
 
   /**
-   * Convert radians to degrees.
+   * See getSurroundingCircles(MapLocation, float, float, float).
    */
-  public static float rad2deg(float rad) {
-    return rad * (180.0f * (float)Math.PI);
+  public static List<MapLocation> getSurroundingCircles(MapLocation center,
+      float radius, float distance) {
+    return getSurroundingCircles(center, radius, distance, 0.0f);
   }
 
   /**
    * Returns a random Direction.
    */
   public static Direction randomDirection() {
-    return new Direction(Utils.deg2rad((float)Math.random() * 360.0f));
+    return new Direction((float)(Math.random() * (Math.PI * 2)));
   }
 
 }

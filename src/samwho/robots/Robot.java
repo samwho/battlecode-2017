@@ -348,29 +348,12 @@ public abstract strictfp class Robot {
   }
 
   /**
-   * Gets a list surrounding locations that could fit a circle of given radius
-   * and distance away from you.
+   * Gets a list surrounding locations around this unit.
    *
-   * If the circles do not fit exactly, they will be evenly spaced around your
-   * location.
+   * See Utils.getSurroundingCircles.
    */
   List<MapLocation> getSurroundingCircles(float radius, float distance) {
-    double opposite = (double)radius;
-    double hypotenuse = (double)distance;
-    double wedgeAngle = Math.asin(opposite / hypotenuse) * 2;
-    int numWedges = (int)((Math.PI * 2) / wedgeAngle);
-
-    double step = (Math.PI * 2) / numWedges;
-    double currentAngle = 0.0f;
-    List<MapLocation> locations = new ArrayList<>(numWedges);
-
-    for (int i = 0; i < numWedges; i++) {
-      Direction d = new Direction((float)currentAngle);
-      locations.add(rc.getLocation().add(d, distance));
-      currentAngle += step;
-    }
-
-    return locations;
+    return Utils.getSurroundingCircles(rc.getLocation(), radius, distance);
   }
 
   boolean isMoveOntoBullet(MapLocation l) {
