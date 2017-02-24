@@ -52,6 +52,10 @@ public strictfp class BuildAction extends Action {
     return this.type;
   }
 
+  public Direction getDirection() {
+    return this.direction;
+  }
+
   @Override
   public void run() throws GameActionException {
     RobotController rc = builder.getRobotController();

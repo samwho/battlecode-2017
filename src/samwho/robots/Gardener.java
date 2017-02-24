@@ -12,30 +12,60 @@ import java.util.Set;
 
 public strictfp class Gardener extends Robot {
   private static final int NUM_TREES_TO_PLANT = 5;
+  private static final int NUM_SPACES_AROUND_ME = NUM_TREES_TO_PLANT + 1;
 
   private Set<MapLocation> treeLocations;
   private boolean inPosition = false;
 
+  private strictfp class PlantTreeAction extends Action {
+    private Direction plantDirection;
+    private RobotController rc;
+
+    public PlantTreeAction(int priority, RobotController rc,
+        Direction plantDirection) {
+
+      super(priority);
+      this.plantDirection = plantDirection;
+      this.rc = rc;
+    }
+
+    @Override
+    public boolean isDoable() throws GameActionException {
+      return rc.canPlantTree(plantDirection);
+    }
+
+    @Override
+    public void run() throws GameActionException {
+      rc.plantTree(plantDirection);
+    }
+  }
+
   @Override
   public void onCreate() {
-    run(Integer.MAX_VALUE, () -> {
+    run(() -> {
       moveToGardeningLocation();
 
-      // Initial surrounding tree setup.
-      while (needMoreTrees()) {
-        tryPlantTreeIfNeeded();
-        waterSaddestNearbyTree();
-        Clock.yield();
-      }
+      int i = 0;
+      for (MapLocation l : treeLocations) {
+        Direction d = rc.getLocation().directionTo(l);
 
-      // Kick off the build loop.
-      build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
+        // If we're on the last of the tree planting locations, don't plan a
+        // tree. Instead, save the space as a spawning location.
+        if (i == NUM_TREES_TO_PLANT) {
+          // Kick off the build loop.
+          build(RobotType.SOLDIER, d);
+          break;
+        }
+
+        enqueue(new PlantTreeAction(Integer.MAX_VALUE, rc, d));
+        i++;
+      }
     });
   }
 
   @Override
   public void onBuildFinished(BuildAction ba) {
-    build(RobotType.SOLDIER, rc.getLocation().directionTo(getTreeGap()));
+    build(ba.getType(), ba.getDirection());
   }
 
   @Override
@@ -73,7 +103,6 @@ public strictfp class Gardener extends Robot {
     return rc.senseNearbyTrees(3.0f, rc.getTeam());
   }
 
-  // TODO(samwho): Fix this.
   private MapLocation getTreeGap() {
     Set<MapLocation> myTreeLocations = new HashSet();
     for (TreeInfo tree : getMyTrees()) {
@@ -158,7 +187,7 @@ public strictfp class Gardener extends Robot {
     float treeRadius = 1.0f;
     float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
     this.treeLocations =
-      new HashSet(getSurroundingLocations(NUM_TREES_TO_PLANT + 1, distance));
+      new HashSet(getSurroundingLocations(NUM_SPACES_AROUND_ME, distance));
 
     this.inPosition = true;
   }
