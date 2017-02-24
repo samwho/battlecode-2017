@@ -11,8 +11,9 @@ import java.util.PriorityQueue;
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
-  private static final int MAX_IDLE_PER_TURN = 2;
-  private static final int BUILD_PRIORITY = 127;
+  private static final int DEFAULT_PRIORITY = 0;
+  private static final int DEFAULT_RUN_PRIORITY = 0;
+  private static final int DEFAULT_BUILD_PRIORITY = 0;
 
   protected RobotController rc;
 
@@ -26,15 +27,6 @@ public abstract strictfp class Robot {
    * implement this method. See BuildAction for an example.
    */
   private PriorityQueue<Action> actionQueue = new PriorityQueue<>();
-
-  /**
-   * The purpose of the build queue is to hold units to build until it's
-   * possible to build them.
-   *
-   * When it is possible to build a unit, it will be build. The highest priority
-   * build order takes precedence.
-   */
-  private PriorityQueue<BuildAction> buildQueue = new PriorityQueue<>();
 
   // For checking when the round has changed.
   private int round = 0;
@@ -50,7 +42,6 @@ public abstract strictfp class Robot {
     this.rc = rc;
   }
 
-
   /**
    * Called when robots are "idle".
    *
@@ -65,26 +56,25 @@ public abstract strictfp class Robot {
   public void onCreate() { }
 
   /**
-   * Called at most once per turn.
+   * Called at most once per round.
    *
-   * It's possible that this skips turns if actions run for a long time.
+   * It's possible that this skips rounds if actions run for a long time.
    */
-  public void onNewTurn() { }
+  public void onNewRound(int round) { }
+
 
   /**
-   * Called after a build has finished.
-   *
-   * The intended purpose of this is for you to maintain a clean stream of
-   * robots to build.
+   * Called after a BuildAction has finished running.
    */
   public void onBuildFinished(BuildAction ba) { }
 
   /**
-   * Called after an action finishes.
+   * Called after an Action has finished running.
    *
-   * Does not include BuildActions, as they're done on a separate build queue.
+   * This may be called in conjunction with the more specific handlers. Use
+   * wisely.
    */
-  public void onActionFinished(Action a) { }
+  public void onActionFinished(Action b) { }
 
   /**
    * Starts the infinite loop of robot behaviour.
@@ -93,24 +83,14 @@ public abstract strictfp class Robot {
    * onIdle), we check if the turn has rolled over and if it has we jump back up
    * to the start of the order of operations.
    */
-  public void run() {
-    // To set up counters
-    isNewRound();
+  public void run() throws GameActionException {
+    resetRoundCounters();
 
     onCreate();
 
     while (true) {
-      if (isNewRound()) {
-        continue;
-      }
-
-      onNewTurn();
-
-      if (isNewRound()) {
-        continue;
-      }
-
-      handleBuildPhase();
+      resetRoundCounters();
+      onNewRound(this.round);
 
       if (isNewRound()) {
         continue;
@@ -136,44 +116,60 @@ public abstract strictfp class Robot {
 
   /**
    * Searches the action queue for the highest priority action that can be done
-   * right now and does it.
+   * right now and does it. Continues to do this until either the robot is
+   * unable to do more things this turn, or we run out of actions.
    *
-   * This method is also responsible for calling the onActionFinished handler.
+   * This method is also responsible for calling the before and after hooks on
+   * the action.
    */
-  private void handleActionPhase() {
-    try {
-      runHighestPriorityFrom(actionQueue);
-    } catch (GameActionException e) {
-      e.printStackTrace();
+  private void handleActionPhase() throws GameActionException {
+    while (canDoAnything() && !isNewRound()) {
+      Action a = getHighestPriorityDoableActionFrom(actionQueue);
+      if (a == null) {
+        break;
+      }
+
+      if (a.shouldCancel()) {
+        continue;
+      }
+
+      a.run();
+
+      // Run callbacks.
+      if (a instanceof BuildAction) {
+        onBuildFinished((BuildAction)a);
+      }
+
+      // Default callback, always called.
+      onActionFinished(a);
     }
   }
 
   /**
-   * Searches the build queue for the highest priority build that can be build
-   * right now and builds it.
-   *
-   * This method is also responsible for calling the onBuildFinished handler.
+   * Checks to see if this robot can still do things to the game world on this
+   * turn.
    */
-  private void handleBuildPhase() {
-    try {
-      BuildAction ba = (BuildAction)runHighestPriorityFrom(buildQueue);
-
-      if (ba != null) {
-        onBuildFinished(ba);
-      }
-    } catch (GameActionException e) {
-      e.printStackTrace();
-    }
+  private boolean canDoAnything() {
+    return
+      !rc.hasMoved() ||
+      rc.canStrike() ||
+      rc.canWater() ||
+      rc.canShake() ||
+      rc.canFirePentadShot() ||
+      rc.canFireTriadShot() ||
+      rc.canFireSingleShot() ||
+      rc.isBuildReady() ||
+      rc.hasTreeBuildRequirements();
   }
 
   /**
    * Searches a PriorityQueue for the highest priority action that can be done
-   * and then runs it.
+   * and returns it.
    *
    * Also takes responsibility for removing that action from the queue.
    */
-  private <T extends Action> T runHighestPriorityFrom(PriorityQueue<T> queue)
-    throws GameActionException {
+  private <T extends Action> T getHighestPriorityDoableActionFrom(
+      PriorityQueue<T> queue) throws GameActionException {
 
     T toDo = null;
 
@@ -186,7 +182,6 @@ public abstract strictfp class Robot {
 
     if (toDo != null) {
       queue.remove(toDo);
-      toDo.run();
       return toDo;
     }
 
@@ -201,7 +196,7 @@ public abstract strictfp class Robot {
    * Check whether this robot has anything to do.
    */
   public boolean idle() {
-    return actionQueue.isEmpty() && buildQueue.isEmpty();
+    return actionQueue.isEmpty();
   }
 
   /**
@@ -245,13 +240,16 @@ public abstract strictfp class Robot {
    * Checks if the round has changed since this was last called.
    */
   boolean isNewRound() {
-    int cur = rc.getRoundNum();
-    if (cur != this.round) {
-      this.round = cur;
-      return true;
-    }
+    return this.round != rc.getRoundNum();
+  }
 
-    return false;
+  void resetRoundCounters() {
+    this.round = rc.getRoundNum();
+  }
+
+  public MoveAction moveTo(MapLocation destination) {
+    MoveAction ma = new MoveAction(DEFAULT_PRIORITY, this, destination);
+    return enqueue(ma);
   }
 
   /**
@@ -264,32 +262,34 @@ public abstract strictfp class Robot {
    * Given that each robot is independent, no restrictions on the priority are
    * given. Robots are free to determine their own priorities.
    */
-  void enqueue(Action action) {
-    actionQueue.add(action);
+  public <T extends Action> T enqueue(T action) {
+    return actionQueue.add(action) ? action : null;
   }
 
-  void enqueue(int priority, GameRunnable runnable) {
-    actionQueue.add(new RunnableAction(priority, runnable));
+  public RunnableAction run(int priority, GameRunnable runnable) {
+    RunnableAction a = new RunnableAction(priority, runnable);
+    return enqueue(a);
   }
 
-  void enqueue(GameRunnable runnable) {
-    actionQueue.add(new RunnableAction(0, runnable));
+  public RunnableAction run(GameRunnable runnable) {
+    return run(DEFAULT_RUN_PRIORITY, runnable);
   }
 
-  void build(int priority, RobotType type, Direction d) {
-    buildQueue.add(new BuildAction(this, priority, type, d));
+  public BuildAction build(int priority, RobotType type, Direction d) {
+    BuildAction ba = new BuildAction(this, priority, type, d);
+    return enqueue(ba);
   }
 
-  void build(int priority, RobotType type) {
-    build(priority, type, null);
+  public BuildAction build(int priority, RobotType type) {
+    return build(priority, type, null);
   }
 
-  void build(RobotType type, Direction d) {
-    build(BUILD_PRIORITY, type, d);
+  public BuildAction build(RobotType type, Direction d) {
+    return build(DEFAULT_BUILD_PRIORITY, type, d);
   }
 
-  void build(RobotType type) {
-    build(BUILD_PRIORITY, type);
+  public BuildAction build(RobotType type) {
+    return build(DEFAULT_BUILD_PRIORITY, type);
   }
 
   /**
@@ -410,8 +410,21 @@ public abstract strictfp class Robot {
    * @return true if a move was performed
    * @throws GameActionException
    */
-  boolean tryMove(Direction dir) throws GameActionException {
-    return tryMove(dir,20,3);
+  public boolean tryMove(Direction dir) throws GameActionException {
+    return tryMove(dir, rc.getType().bodyRadius, 20, 3);
+  }
+
+  /**
+   * Attempts to move in a given direction, while avoiding small obstacles
+   * directly in the path.
+   *
+   * @param dir The intended direction of movement
+   * @param distance The intended distance of movement
+   * @return true if a move was performed
+   * @throws GameActionException
+   */
+  public boolean tryMove(Direction dir, float distance) throws GameActionException {
+    return tryMove(dir, distance, 20, 3);
   }
 
   /**
@@ -425,10 +438,11 @@ public abstract strictfp class Robot {
    * @return true if a move was performed
    * @throws GameActionException
    */
-  boolean tryMove(Direction dir, float degreeOffset, int checksPerSide)
+  public boolean tryMove(Direction dir, float distance, float degreeOffset,
+      int checksPerSide)
     throws GameActionException {
     // First, try intended direction.
-    if (rc.canMove(dir)) {
+    if (rc.canMove(dir, distance)) {
       rc.move(dir);
       return true;
     }
@@ -437,16 +451,20 @@ public abstract strictfp class Robot {
     boolean moved = false;
     int currentCheck = 1;
 
+    Direction newDirection;
+
     while(currentCheck <= checksPerSide) {
       // Try the offset of the left side.
-      if(rc.canMove(dir.rotateLeftDegrees(degreeOffset * currentCheck))) {
-        rc.move(dir.rotateLeftDegrees(degreeOffset * currentCheck));
+      newDirection = dir.rotateLeftDegrees(degreeOffset * currentCheck);
+      if(rc.canMove(newDirection, distance)) {
+        rc.move(newDirection, distance);
         return true;
       }
 
       // Try the offset on the right side.
-      if(rc.canMove(dir.rotateRightDegrees(degreeOffset * currentCheck))) {
-        rc.move(dir.rotateRightDegrees(degreeOffset * currentCheck));
+      newDirection = dir.rotateRightDegrees(degreeOffset * currentCheck);
+      if(rc.canMove(newDirection, distance)) {
+        rc.move(newDirection, distance);
         return true;
       }
 

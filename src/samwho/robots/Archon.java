@@ -22,15 +22,15 @@ public strictfp class Archon extends Robot {
   }
 
   @Override
-  public void onNewTurn() {
-    if (rc.getRoundNum() % 100 == 0 && gardenerCount < MAX_NUM_GARDENERS) {
+  public void onNewRound(int round) {
+    if (round % 100 == 0 && gardenerCount < MAX_NUM_GARDENERS) {
       build(RobotType.GARDENER);
     }
   }
 
   @Override
   public void onIdle() {
-    enqueue(0, () -> {
+    run(() -> {
       if (rc.hasMoved()) {
         Clock.yield();
         return;

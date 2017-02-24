@@ -6,8 +6,8 @@ import battlecode.common.*;
 
 public strictfp class Soldier extends Robot {
   @Override
-  public void onNewTurn() {
-    enqueue(0, () -> {
+  public void onNewRound(int round) {
+    run(() -> {
       if (!rc.hasMoved()) {
         Direction d = randomDirectionAvoidingBullets();
         if (d != null) {

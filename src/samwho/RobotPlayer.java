@@ -14,6 +14,10 @@ public strictfp class RobotPlayer {
       return;
     }
 
-    r.run();
+    try {
+      r.run();
+    } catch (GameActionException e) {
+      e.printStackTrace();
+    }
   }
 }

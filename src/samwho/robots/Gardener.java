@@ -18,7 +18,7 @@ public strictfp class Gardener extends Robot {
 
   @Override
   public void onCreate() {
-    enqueue(Integer.MAX_VALUE, () -> {
+    run(Integer.MAX_VALUE, () -> {
       moveToGardeningLocation();
 
       // Initial surrounding tree setup.
@@ -39,9 +39,9 @@ public strictfp class Gardener extends Robot {
   }
 
   @Override
-  public void onNewTurn() {
+  public void onNewRound(int round) {
     if (inPosition) {
-      enqueue(() -> {
+      run(() -> {
         tryPlantTreeIfNeeded();
         waterSaddestNearbyTree();
       });

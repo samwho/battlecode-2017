@@ -7,7 +7,7 @@ import battlecode.common.*;
 public strictfp class Lumberjack extends Robot {
   @Override
   public void onIdle() {
-    enqueue(0, () -> {
+    run(0, () -> {
       Team enemy = rc.getTeam().opponent();
 
       // See if there are any enemy robots within striking range (distance 1 from

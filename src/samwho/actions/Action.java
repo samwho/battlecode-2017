@@ -6,9 +6,15 @@ import battlecode.common.*;
 
 public abstract strictfp class Action implements Comparable<Action> {
   protected int priority;
+  private GamePredicate shouldCancel;
 
   public Action(int priority) {
     this.priority = priority;
+    this.shouldCancel = () -> false;
+  }
+
+  public void cancelIf(GamePredicate shouldCancel) {
+    this.shouldCancel = shouldCancel;
   }
 
   /**
@@ -20,13 +26,20 @@ public abstract strictfp class Action implements Comparable<Action> {
   public abstract void run() throws GameActionException;
 
   /**
-   * Checks if the run method will succeed or fail.
+   * Checks if the run method can be run on this turn.
    *
    * There is a guarantee that this method will be called before run(), and
    * run() will not be called until this method returns true.
    */
   public boolean isDoable() throws GameActionException {
     return true;
+  }
+
+  /**
+   * Check to see whether we should cancel this action entirely.
+   */
+  public boolean shouldCancel() throws GameActionException {
+    return shouldCancel.test();
   }
 
   @Override
