@@ -66,7 +66,7 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
   }
 
   private MapLocation getTreeGap() {
-    Set<MapLocation> myTreeLocations = new HashSet();
+    Set<MapLocation> myTreeLocations = new HashSet<>();
     for (TreeInfo tree : getMyTrees()) {
       myTreeLocations.add(tree.location);
     }
@@ -76,6 +76,8 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
         return l;
       }
     }
+
+    Utils.debug_out("unable to find tree gap");
 
     // Should never happen
     return null;
@@ -149,7 +151,7 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
     float treeRadius = 1.0f;
     float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
     this.treeLocations =
-      new HashSet(getSurroundingLocations(NUM_SPACES_AROUND_ME, distance));
+      new HashSet(getSurroundingCircles(treeRadius, distance));
 
     this.inPosition = true;
   }

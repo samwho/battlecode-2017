@@ -338,7 +338,7 @@ public abstract strictfp class Robot {
   public Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
     float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
-    for (MapLocation l : getSurroundingLocations(6, distance)) {
+    for (MapLocation l : getSurroundingCircles(other.bodyRadius, distance)) {
       if (!rc.isCircleOccupied(l, other.bodyRadius)) {
         return rc.getLocation().directionTo(l);
       }
@@ -348,23 +348,24 @@ public abstract strictfp class Robot {
   }
 
   /**
-   * Get a number of equally distributed surrounding locations a set distance
-   * away.
+   * Gets a list surrounding locations that could fit a circle of given radius
+   * and distance away from you.
    *
-   * Imagine a clock. If you passed 12 and 1 into this function, you would get
-   * 12 equally spread points around your current location, all a distance of 1
-   * away.
-   *
-   * TODO(samwho): This function could take a radius and cleverly figure out how
-   * many points you could have around you for that given radius of object.
+   * If the circles do not fit exactly, they will be evenly spaced around your
+   * location.
    */
-  List<MapLocation> getSurroundingLocations(int count, float distance) {
-    float step = 360.0f / count;
-    float currentAngle = 0.0f;
-    List<MapLocation> locations = new ArrayList<>(count);
+  List<MapLocation> getSurroundingCircles(float radius, float distance) {
+    double opposite = (double)radius;
+    double hypotenuse = (double)distance;
+    double wedgeAngle = Math.asin(opposite / hypotenuse) * 2;
+    int numWedges = (int)((Math.PI * 2) / wedgeAngle);
 
-    for (int i = 0; i < count; i++) {
-      Direction d = new Direction(Utils.deg2rad(currentAngle));
+    double step = (Math.PI * 2) / numWedges;
+    double currentAngle = 0.0f;
+    List<MapLocation> locations = new ArrayList<>(numWedges);
+
+    for (int i = 0; i < numWedges; i++) {
+      Direction d = new Direction((float)currentAngle);
       locations.add(rc.getLocation().add(d, distance));
       currentAngle += step;
     }
