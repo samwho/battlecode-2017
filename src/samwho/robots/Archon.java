@@ -36,6 +36,11 @@ public strictfp class Archon extends Robot {
         return;
       }
 
+      // Simple donation strategy.
+      if (rc.getTeamBullets() > 5000) {
+        rc.donate(1000);
+      }
+
       // Move randomly
       tryMove(Utils.randomDirection());
 
