@@ -5,6 +5,14 @@ import samwho.functional.*;
 
 import battlecode.common.*;
 
+/**
+ * Base Action class.
+ *
+ * TODO(samwho): there seems to be an infinite loop possibility where actions
+ * are doable but their run method doesn't actually complete them. While this is
+ * a bug in the implementation of a given action, it might be worth implementing
+ * some sort of guard that only attempts to run an action once per turn.
+ */
 public abstract strictfp class Action implements Comparable<Action> {
   protected int priority;
   private GamePredicate shouldCancel;
