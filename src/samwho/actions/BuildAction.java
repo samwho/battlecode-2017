@@ -5,6 +5,9 @@ import samwho.robots.*;
 
 import battlecode.common.*;
 
+/**
+ * An action for building units.
+ */
 public strictfp class BuildAction extends Action {
   private Robot builder;
   private RobotType type;
@@ -48,18 +51,17 @@ public strictfp class BuildAction extends Action {
     return rc.canBuildRobot(type, direction);
   }
 
+  @Override
+  public void run() throws GameActionException {
+    builder.getRobotController().buildRobot(type, direction);
+  }
+
   public RobotType getType() {
     return this.type;
   }
 
   public Direction getDirection() {
     return this.direction;
-  }
-
-  @Override
-  public void run() throws GameActionException {
-    RobotController rc = builder.getRobotController();
-    rc.buildRobot(type, direction);
   }
 }
 

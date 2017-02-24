@@ -1,6 +1,7 @@
 package samwho.actions;
 
 import samwho.*;
+import samwho.functional.*;
 
 import battlecode.common.*;
 
@@ -13,6 +14,13 @@ public abstract strictfp class Action implements Comparable<Action> {
     this.shouldCancel = () -> false;
   }
 
+  /**
+   * Sets a cancellation predicate on the action.
+   *
+   * Example usage:
+   *
+   *   enqueue(() -> doThing()).cancelIf(() -> whoops());
+   */
   public void cancelIf(GamePredicate shouldCancel) {
     this.shouldCancel = shouldCancel;
   }
@@ -30,6 +38,8 @@ public abstract strictfp class Action implements Comparable<Action> {
    *
    * There is a guarantee that this method will be called before run(), and
    * run() will not be called until this method returns true.
+   *
+   * This will be called at most once per turn.
    */
   public boolean isDoable() throws GameActionException {
     return true;
@@ -37,14 +47,22 @@ public abstract strictfp class Action implements Comparable<Action> {
 
   /**
    * Check to see whether we should cancel this action entirely.
+   *
+   * If this returns true, the action will be removed from the queue without the
+   * run() method being called, and will cease to exist.
+   *
+   * This will be called at most once per turn.
    */
   public boolean shouldCancel() throws GameActionException {
     return shouldCancel.test();
   }
 
+  /**
+   * Ensures priority ordering such that higher priority numbers are considered
+   * to be run first.
+   */
   @Override
   public int compareTo(Action other) {
-    // Negative for descending order (higher numbers means higher priority).
     return -Integer.compare(this.priority, other.priority);
   }
 

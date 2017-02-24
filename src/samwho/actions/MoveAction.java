@@ -5,6 +5,9 @@ import samwho.robots.*;
 
 import battlecode.common.*;
 
+/**
+ * An action for moving to a location over multiple turns.
+ */
 public strictfp class MoveAction extends Action {
   private Robot mover;
   private MapLocation destination;

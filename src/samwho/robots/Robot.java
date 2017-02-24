@@ -2,6 +2,7 @@ package samwho.robots;
 
 import samwho.*;
 import samwho.actions.*;
+import samwho.functional.*;
 
 import java.util.function.Predicate;
 import java.util.ArrayList;
