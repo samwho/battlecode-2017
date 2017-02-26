@@ -9,11 +9,10 @@ import battlecode.common.*;
  * An action for moving to a location over multiple turns.
  */
 public strictfp class MoveAction extends Action {
-  private static final float TOLERANCE = 0.001f;
+  private static final float TOLERANCE = 0.01f;
 
   private Robot mover;
   private MapLocation destination;
-  private boolean reachedDestination = false;
 
   public MoveAction(int priority, Robot mover, MapLocation destination) {
     super(priority, "move to " + destination);
@@ -23,23 +22,21 @@ public strictfp class MoveAction extends Action {
   }
 
   @Override
-  public boolean isDoable() {
-    return !mover.getRobotController().hasMoved();
-  }
-
-  @Override
-  public void run() throws GameActionException {
+  public boolean run() throws GameActionException {
     RobotController rc = mover.getRobotController();
 
+    if (rc.hasMoved()) {
+      return false;
+    }
+
     if (!rc.onTheMap(destination, rc.getType().bodyRadius)) {
-      throw new GameActionException(null,
-          "asked to move somewhere that robot cannot physically occupy");
+      this.cancel();
+      return false;
     }
 
     MapLocation myLocation = rc.getLocation();
     if (myLocation.distanceTo(destination) < TOLERANCE) {
-      this.reachedDestination = true;
-      return;
+      return true;
     }
 
     Direction moveDirection = myLocation.directionTo(destination);
@@ -50,18 +47,7 @@ public strictfp class MoveAction extends Action {
     }
 
     // Make progress towards destination.
-    mover.tryMove(moveDirection, distance);
-
-    // More movement may need to be done, so re-queue the move action. This is
-    // how we facilitate multi-turn movement.
-    mover.enqueue(this);
-  }
-
-  /**
-   * Because move actions can span multiple turns, this is used to signify
-   * whether we got to our destination on this turn.
-   */
-  public boolean reachedDestination() {
-    return this.reachedDestination;
+    mover.tryMove(moveDirection, distance, 30 /* offset */, 6 /* attempts */);
+    return false;
   }
 }

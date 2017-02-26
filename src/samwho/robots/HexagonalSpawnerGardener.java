@@ -25,11 +25,6 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
 
   @Override
   public void onMoveFinished(MoveAction ma) {
-    // Still mid-way through a multi-round move.
-    if (!ma.reachedDestination()) {
-      return;
-    }
-
     run("onMoveFinished", () -> {
       if (!isGoodLocation(rc.getLocation())) {
         moveToPotentialGardeningLocation();

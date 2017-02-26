@@ -26,34 +26,28 @@ public strictfp class BuildAction extends Action {
   }
 
   @Override
-  public boolean isDoable() throws GameActionException {
+  public boolean run() throws GameActionException {
     RobotController rc = builder.getRobotController();
 
-    if (direction == null) {
-      direction = builder.getUnoccupiedBuildDirectionFor(type);
-
-      if (direction == null) {
-        Utils.debug_out(
-            "can't build " + type.name() + ", unable to find location");
-
-        return false;
-      }
-
-      if (!rc.canBuildRobot(type, direction)) {
-        Utils.debug_out("can't build " + type.name());
-        direction = null;
-        return false;
-      }
-
-      return true;
+    Direction buildDir = direction;
+    if (buildDir == null) {
+      // If no direction was specified when the BuildAction was created, we need
+      // to find an appropriate direction every time we try the build, because
+      // the user doesn't mind where the build happens.
+      buildDir = builder.getUnoccupiedBuildDirectionFor(type);
     }
 
-    return rc.canBuildRobot(type, direction);
-  }
+    if (buildDir == null) {
+      // No good build direction available this turn, try again next time.
+      return false;
+    }
 
-  @Override
-  public void run() throws GameActionException {
-    builder.getRobotController().buildRobot(type, direction);
+    if (!rc.canBuildRobot(type, buildDir)) {
+      return false;
+    }
+
+    builder.getRobotController().buildRobot(type, buildDir);
+    return true;
   }
 
   public RobotType getType() {

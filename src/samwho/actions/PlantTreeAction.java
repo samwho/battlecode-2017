@@ -23,13 +23,14 @@ public strictfp class PlantTreeAction extends Action {
   }
 
   @Override
-  public boolean isDoable() throws GameActionException {
-    return rc.canPlantTree(plantDirection);
-  }
+  public boolean run() throws GameActionException {
+    if (!rc.canPlantTree(plantDirection)) {
+      return false;
+    }
 
-  @Override
-  public void run() throws GameActionException {
     rc.plantTree(plantDirection);
     planter.onTreePlanted(this);
+
+    return true;
   }
 }

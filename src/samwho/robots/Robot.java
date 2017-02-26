@@ -12,6 +12,8 @@ import java.util.PriorityQueue;
 import battlecode.common.*;
 
 public abstract strictfp class Robot {
+  private static boolean DEBUG_PERFORMANCE = true;
+
   private static final int STATUS_INTERVAL = 100;
 
   private static final int DEFAULT_PRIORITY = 0;
@@ -33,7 +35,7 @@ public abstract strictfp class Robot {
 
   // For checking when the round has changed.
   private int round = 0;
-  private int bytecodesLeft = 0;
+  private BytecodeCounter counter = null;
 
   /**
    * Only to be called by RobotFactory.
@@ -92,30 +94,46 @@ public abstract strictfp class Robot {
    * to the start of the order of operations.
    */
   public void run() throws GameActionException {
-    resetRoundCounters();
+    setCounters();
 
     onCreate();
 
     while (true) {
-      resetRoundCounters();
+      setCounters();
+
+      if (DEBUG_PERFORMANCE) {
+        if (this.counter != null) {
+          this.counter.close();
+        }
+
+        this.counter = new BytecodeCounter(rc, "" + this.round);
+      }
 
       if (this.round % STATUS_INTERVAL == 0) {
+        lap();
         statusReport();
+        lap("statusReport");
       }
 
+      lap();
       onNewRound(this.round);
+      lap("onNewRound");
 
       if (isNewRound()) {
         continue;
       }
 
+      lap();
       handleActionPhase();
+      lap("handleActionPhase");
 
       if (isNewRound()) {
         continue;
       }
 
+      lap();
       onIdle();
+      lap("onIdle");
 
       if (isNewRound()) {
         continue;
@@ -137,42 +155,64 @@ public abstract strictfp class Robot {
   }
 
   /**
-   * Searches the action queue for the highest priority action that can be done
-   * right now and does it. Continues to do this until either the robot is
-   * unable to do more things this turn, or we run out of actions.
-   *
-   * This method is also responsible for calling the before and after hooks on
-   * the action.
+   * Handles the phase of a turn that scans the action queue and runs what it
+   * can.
    */
   private void handleActionPhase() throws GameActionException {
-    while (canDoAnything() && !isNewRound()) {
-      Utils.debug_out("searching for doable actions this turn...");
-      Action a = getHighestPriorityDoableActionFrom(actionQueue);
-      if (a == null) {
-        Utils.debug_out("no doable actions left this turn");
+    while (actionQueue.size() > 0 && canDoAnything() && !isNewRound()) {
+      int actionsRun = 0;
+
+      PriorityQueue<Action> nActionQueue;
+      nActionQueue = new PriorityQueue<>(actionQueue);
+      actionQueue = new PriorityQueue<>();
+
+      for (Action a : nActionQueue) {
+        // We used to check for isNewRound() here but it leaves the possibility
+        // of dropping actions without trying to run them due to how we due the
+        // queue copying up there ^
+        if (!canDoAnything()) {
+          break;
+        }
+
+        if (a.isCancelled()) {
+          continue;
+        }
+
+        lap();
+        boolean success = a.run();
+        lap(a.getName());
+
+        // Action was not successful, so we re-queue it for next turn and go to
+        // the next action.
+        //
+        // TODO(samwho): implement flexible retry behaviour?
+        if (!success) {
+          actionQueue.add(a);
+          continue;
+        }
+
+        actionsRun++;
+
+        // Run callbacks only if the action succeeded.
+        lap();
+        if (a instanceof BuildAction) {
+          onBuildFinished((BuildAction)a);
+          lap("onBuildFinished");
+        } else if (a instanceof MoveAction) {
+          onMoveFinished((MoveAction)a);
+          lap("onMoveFinished");
+        }
+
+        // Default callback, always called.
+        onActionFinished(a);
+        lap("onActionFinished");
+      }
+
+      // If we didn't manage to run any of the actions, we take this to mean
+      // that we can't run any actions this turn, so we break out and return.
+      if (actionsRun == 0) {
         break;
       }
-
-      Utils.debug_out("found action: " + a);
-
-      if (a.shouldCancel()) {
-        Utils.debug_out("action cancelled");
-        continue;
-      }
-
-      Utils.debug_out("running action: " + a);
-      a.run();
-
-      // Run callbacks.
-      Utils.debug_out("running callbacks for: " + a);
-      if (a instanceof BuildAction) {
-        onBuildFinished((BuildAction)a);
-      } else if (a instanceof MoveAction) {
-        onMoveFinished((MoveAction)a);
-      }
-
-      // Default callback, always called.
-      onActionFinished(a);
     }
   }
 
@@ -191,32 +231,6 @@ public abstract strictfp class Robot {
       rc.canFireSingleShot() ||
       rc.isBuildReady() ||
       rc.hasTreeBuildRequirements();
-  }
-
-  /**
-   * Searches a PriorityQueue for the highest priority action that can be done
-   * and returns it.
-   *
-   * Also takes responsibility for removing that action from the queue.
-   */
-  private <T extends Action> T getHighestPriorityDoableActionFrom(
-      PriorityQueue<T> queue) throws GameActionException {
-
-    T toDo = null;
-
-    for (T a : queue) {
-      if (a.isDoable()) {
-        toDo = a;
-        break;
-      }
-    }
-
-    if (toDo != null) {
-      queue.remove(toDo);
-      return toDo;
-    }
-
-    return null;
   }
 
   public RobotController getRobotController() {
@@ -248,7 +262,7 @@ public abstract strictfp class Robot {
       RobotInfo[] robots = rc.senseNearbyRobots(check, 1.0f, friendly);
 
       for (RobotInfo robot : robots) {
-      // No robot at current check location? Continue to next iteration.
+        // No robot at current check location? Continue to next iteration.
         if (robot == null) {
           continue;
         }
@@ -274,8 +288,21 @@ public abstract strictfp class Robot {
     return this.round != rc.getRoundNum();
   }
 
-  void resetRoundCounters() {
+  void setCounters() {
     this.round = rc.getRoundNum();
+  }
+
+  protected void lap() {
+    if (this.counter != null) {
+      this.counter.lap();
+    }
+  }
+
+  protected void lap(String message) {
+    if (this.counter != null) {
+      int bytecodes = this.counter.lap();
+      Utils.debug_out(message + " -> " + bytecodes);
+    }
   }
 
   public MoveAction moveTo(MapLocation destination) {

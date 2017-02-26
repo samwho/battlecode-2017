@@ -20,7 +20,8 @@ public strictfp class RunnableAction extends Action {
   }
 
   @Override
-  public void run() throws GameActionException {
+  public boolean run() throws GameActionException {
     this.runnable.run();
+    return true;
   }
 }

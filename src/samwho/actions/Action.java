@@ -17,6 +17,8 @@ public abstract strictfp class Action implements Comparable<Action> {
   protected int priority;
   private GamePredicate shouldCancel;
   private String name;
+  private boolean cancel = false;
+  private int bytecodeCost = 0;
 
   public Action(int priority, String name) {
     this.priority = priority;
@@ -38,22 +40,13 @@ public abstract strictfp class Action implements Comparable<Action> {
   /**
    * Do something that affects the game world.
    *
-   * You are expected to make sure that isDoable() returns true before calling
-   * this method.
-   */
-  public abstract void run() throws GameActionException;
-
-  /**
-   * Checks if the run method can be run on this turn.
+   * If this method returns true, the action is considered done. If it returns
+   * false, the action is considered failed this turn.
    *
-   * There is a guarantee that this method will be called before run(), and
-   * run() will not be called until this method returns true.
-   *
-   * This will be called at most once per turn.
+   * It's possible that this method is run more than once per turn, and you are
+   * expected to code defensively.
    */
-  public boolean isDoable() throws GameActionException {
-    return true;
-  }
+  public abstract boolean run() throws GameActionException;
 
   /**
    * Check to see whether we should cancel this action entirely.
@@ -63,8 +56,12 @@ public abstract strictfp class Action implements Comparable<Action> {
    *
    * This will be called at most once per turn.
    */
-  public boolean shouldCancel() throws GameActionException {
-    return shouldCancel.test();
+  public boolean isCancelled() throws GameActionException {
+    return cancel || shouldCancel.test();
+  }
+
+  public void cancel() {
+    this.cancel = true;
   }
 
   /**
@@ -82,6 +79,14 @@ public abstract strictfp class Action implements Comparable<Action> {
 
   public String getName() {
     return this.name;
+  }
+
+  public void setBytecodeCost(int bytecodeCost) {
+    this.bytecodeCost = bytecodeCost;
+  }
+
+  public int getBytecodeCost() {
+    return this.bytecodeCost;
   }
 
   @Override
