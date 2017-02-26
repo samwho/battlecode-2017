@@ -77,9 +77,19 @@ public abstract strictfp class Robot {
   public void onBuildFinished(BuildAction ba) { }
 
   /**
+   * Called after a BuildAction has been canceled.
+   */
+  public void onBuildCanceled(BuildAction ba) { }
+
+  /**
    * Called after a MoveAction has finished running.
    */
   public void onMoveFinished(MoveAction ma) { }
+
+  /**
+   * Called after a MoveAction has been canceled.
+   */
+  public void onMoveCanceled(MoveAction ma) { }
 
   /**
    * Called after an Action has finished running.
@@ -88,6 +98,14 @@ public abstract strictfp class Robot {
    * wisely.
    */
   public void onActionFinished(Action b) { }
+
+  /**
+   * Called after an Action has been canceled.
+   *
+   * This may be called in conjunction with the more specific handlers. Use
+   * wisely.
+   */
+  public void onActionCanceled(Action b) { }
 
   /**
    * Starts the infinite loop of robot behaviour.
@@ -160,12 +178,18 @@ public abstract strictfp class Robot {
         }
 
         if (a.isCancelled()) {
+          onCancelledCallback(a);
           continue;
         }
 
         t.prep();
         boolean success = a.run();
         t.record(a.getName());
+
+        if (a.isCancelled()) {
+          onCancelledCallback(a);
+          continue;
+        }
 
         // Action was not successful, so we re-queue it for next turn and go to
         // the next action.
@@ -177,20 +201,7 @@ public abstract strictfp class Robot {
         }
 
         actionsRun++;
-
-        // Run callbacks only if the action succeeded.
-        t.prep();
-        if (a instanceof BuildAction) {
-          onBuildFinished((BuildAction)a);
-          t.record("onBuildFinished");
-        } else if (a instanceof MoveAction) {
-          onMoveFinished((MoveAction)a);
-          t.record("onMoveFinished");
-        }
-
-        // Default callback, always called.
-        onActionFinished(a);
-        t.record("onActionFinished");
+        onFinishCallback(a);
       }
 
       // If we didn't manage to run any of the actions, we take this to mean
@@ -200,6 +211,39 @@ public abstract strictfp class Robot {
       }
     }
   }
+
+  private void onFinishCallback(Action a) {
+    // Run callbacks only if the action succeeded.
+    t.prep();
+    if (a instanceof BuildAction) {
+      onBuildFinished((BuildAction)a);
+      t.record("onBuildFinished");
+    } else if (a instanceof MoveAction) {
+      onMoveFinished((MoveAction)a);
+      t.record("onMoveFinished");
+    }
+
+    // Default callback, always called.
+    onActionFinished(a);
+    t.record("onActionFinished");
+  }
+
+  private void onCancelledCallback(Action a) {
+    // Run callbacks only if the action succeeded.
+    t.prep();
+    if (a instanceof BuildAction) {
+      onBuildCanceled((BuildAction)a);
+      t.record("onBuildCanceled");
+    } else if (a instanceof MoveAction) {
+      onMoveCanceled((MoveAction)a);
+      t.record("onMoveCanceled");
+    }
+
+    // Default callback, always called.
+    onActionCanceled(a);
+    t.record("onActionCanceled");
+  }
+
 
   /**
    * Checks to see if this robot can still do things to the game world on this
@@ -323,7 +367,7 @@ public abstract strictfp class Robot {
   public Direction getUnoccupiedBuildDirectionFor(RobotType other)
     throws GameActionException {
     float distance = rc.getType().bodyRadius + 0.01f + other.bodyRadius;
-    for (MapLocation l : getSurroundingCircles(other.bodyRadius, distance)) {
+    for (MapLocation l : getSurroundingLocations(other.bodyRadius, distance)) {
       if (!rc.isCircleOccupied(l, other.bodyRadius)) {
         return rc.getLocation().directionTo(l);
       }
@@ -335,19 +379,30 @@ public abstract strictfp class Robot {
   /**
    * Gets a list surrounding locations around this unit.
    *
-   * See Utils.getSurroundingCircles.
+   * See Utils.getSurroundingLocations.
    */
-  List<MapLocation> getSurroundingCircles(float radius, float distance) {
-    return Utils.getSurroundingCircles(rc.getLocation(), radius, distance);
+  List<MapLocation> getSurroundingLocations(float radius, float distance) {
+    return Utils.getSurroundingLocations(rc.getLocation(), radius, distance);
+  }
+
+  /**
+   * Gets a list surrounding locations around this unit.
+   *
+   * See Utils.getSurroundingLocations.
+   */
+  List<MapLocation> getSurroundingLocations(float radius, float distance,
+      float offset) {
+    return Utils.getSurroundingLocations(
+        rc.getLocation(), radius, distance, offset);
   }
 
   /**
    * Gets a list N surrounding locations around this unit.
    *
-   * See Utils.getNSurroundingCircles.
+   * See Utils.getNSurroundingLocations.
    */
-  List<MapLocation> getNSurroundingCircles(int count, float distance) {
-    return Utils.getNSurroundingCircles(rc.getLocation(), count, distance);
+  List<MapLocation> getNSurroundingLocations(int count, float distance) {
+    return Utils.getNSurroundingLocations(rc.getLocation(), count, distance);
   }
 
   boolean isMoveOntoBullet(MapLocation l) {

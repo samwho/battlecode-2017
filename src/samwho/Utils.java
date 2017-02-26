@@ -4,8 +4,11 @@ import battlecode.common.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public strictfp class Utils {
+  public static Random random = new Random();
+
   /**
    * Debug-only output.
    *
@@ -47,9 +50,8 @@ public strictfp class Utils {
     double lec = Math.sqrt(Math.pow(ex - c.x, 2) + Math.pow(ey - c.y, 2));
 
     // test if the line intersects the circle. The == case means that the line
-    // is tangential to the circle, and we decide to include that as a
-    // collision.
-    return lec <= radius;
+    // is tangential to the circle.
+    return lec < radius;
   }
 
   /**
@@ -67,14 +69,14 @@ public strictfp class Utils {
    * @param distance how far away the points should be
    * @param offset the offset, in radians, to start at
    */
-  public static List<MapLocation> getSurroundingCircles(MapLocation center,
+  public static List<MapLocation> getSurroundingLocations(MapLocation center,
       float radius, float distance, float offset) {
     double opposite = (double)radius;
     double hypotenuse = (double)distance;
     double wedgeAngle = Math.asin(opposite / hypotenuse) * 2;
     int numWedges = (int)((Math.PI * 2) / wedgeAngle);
 
-    return getNSurroundingCircles(center, numWedges, distance, offset);
+    return getNSurroundingLocations(center, numWedges, distance, offset);
   }
 
   /**
@@ -83,7 +85,7 @@ public strictfp class Utils {
    *
    * Useful for scanning for a location to build a single thing.
    */
-  public static List<MapLocation> getNSurroundingCircles(MapLocation center,
+  public static List<MapLocation> getNSurroundingLocations(MapLocation center,
       int count, float distance, float offset) {
     double step = (Math.PI * 2) / count;
     double currentAngle = offset;
@@ -99,19 +101,19 @@ public strictfp class Utils {
   }
 
   /**
-   * See getSurroundingCircles(MapLocation, float, float, float).
+   * See getSurroundingLocations(MapLocation, float, float, float).
    */
-  public static List<MapLocation> getSurroundingCircles(MapLocation center,
+  public static List<MapLocation> getSurroundingLocations(MapLocation center,
       float radius, float distance) {
-    return getSurroundingCircles(center, radius, distance, 0.0f);
+    return getSurroundingLocations(center, radius, distance, 0.0f);
   }
 
   /**
-   * See getNSurroundingCircles(MapLocation, int, float, float).
+   * See getNSurroundingLocations(MapLocation, int, float, float).
    */
-  public static List<MapLocation> getNSurroundingCircles(MapLocation center,
+  public static List<MapLocation> getNSurroundingLocations(MapLocation center,
       int count, float distance) {
-    return getNSurroundingCircles(center, count, distance, 0.0f);
+    return getNSurroundingLocations(center, count, distance, 0.0f);
   }
 
   /**
@@ -121,4 +123,50 @@ public strictfp class Utils {
     return new Direction((float)(Math.random() * (Math.PI * 2)));
   }
 
+  public static List<BodyInfo> senseNearbyEverything(RobotController rc,
+      float distance) {
+    RobotInfo[] robots   = rc.senseNearbyRobots(distance);
+    TreeInfo[] trees     = rc.senseNearbyTrees(distance);
+    BulletInfo[] bullets = rc.senseNearbyBullets(distance);
+
+    List<BodyInfo> things = new ArrayList<>(
+        robots.length + trees.length + bullets.length);
+
+    for (RobotInfo  robot  : robots)  things.add(robot);
+    for (TreeInfo   tree   : trees)   things.add(tree);
+    for (BulletInfo bullet : bullets) things.add(bullet);
+
+    return things;
+  }
+
+  public static List<BodyInfo> senseNearbyRobotsAndTrees(RobotController rc,
+      float distance) {
+    RobotInfo[] robots = rc.senseNearbyRobots(distance);
+    TreeInfo[] trees   = rc.senseNearbyTrees(distance);
+
+    List<BodyInfo> things = new ArrayList<>(robots.length + trees.length);
+    for (RobotInfo robot : robots) things.add(robot);
+    for (TreeInfo  tree  : trees)  things.add(tree);
+
+    return things;
+  }
+
+  /**
+   * Picks a random direction that it's possible to walk in this turn.
+   */
+  public static Direction randomMovableDirection(RobotController rc) {
+    MapLocation myLocation = rc.getLocation();
+    float strideRadius = rc.getType().strideRadius;
+    float body = rc.getType().bodyRadius;
+    float offset = random.nextFloat() * (float)(Math.PI * 2);
+
+    List<MapLocation> potentialLocations = getNSurroundingLocations(
+        myLocation, 16, strideRadius, offset);
+
+    for (MapLocation l : potentialLocations) {
+      if (rc.canMove(l)) return myLocation.directionTo(l);
+    }
+
+    return null;
+  }
 }

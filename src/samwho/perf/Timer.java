@@ -8,7 +8,7 @@ import battlecode.common.*;
 import java.io.Closeable;
 
 public class Timer implements Closeable {
-  private static final boolean ENABLED = false;
+  private static final boolean ENABLED = true;
 
   private Timer parent;
   private BytecodeCounter bc;

@@ -20,33 +20,17 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
 
   @Override
   public void onCreate() {
-    run("onCreate", () -> moveToPotentialGardeningLocation());
+    run("onCreate", () -> establishGarden());
   }
 
   @Override
   public void onMoveFinished(MoveAction ma) {
-    run("onMoveFinished", () -> {
-      if (!isGoodLocation(rc.getLocation())) {
-        moveToPotentialGardeningLocation();
-        return;
-      }
+    run("onMoveFinished", () -> establishGarden());
+  }
 
-      float treeRadius = 1.0f;
-      float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
-
-      List<MapLocation> sc = getSurroundingCircles(treeRadius, distance);
-      this.gap = sc.remove(0); // for spawning out of
-      this.treeLocations = new HashSet(sc);
-      this.inPosition = true;
-
-      for (MapLocation l : this.treeLocations) {
-        // TODO(samwho): cancel?
-        plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
-        treesScheduled++;
-      }
-
-      build(RobotType.SOLDIER, rc.getLocation().directionTo(this.gap));
-    });
+  @Override
+  public void onMoveCanceled(MoveAction ma) {
+    run("onMoveCanceled", () -> establishGarden());
   }
 
   @Override
@@ -74,47 +58,28 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
     }
   }
 
-  private TreeInfo[] getMyTrees() {
-    return rc.senseNearbyTrees(gardenRadius(), rc.getTeam());
-  }
-
-  private boolean isMissingTrees() throws GameActionException {
-    for (MapLocation l : this.treeLocations) {
-      if (rc.senseTreeAtLocation(l) == null) {
-        return true;
-      }
+  private void establishGarden() throws GameActionException {
+    if (!isGoodLocation(rc.getLocation())) {
+      moveToPotentialGardeningLocation();
+      return;
     }
 
-    return false;
-  }
+    float treeRadius = 1.0f;
+    float distance = rc.getType().bodyRadius + 0.01f + treeRadius;
+    float offset = Utils.random.nextFloat() * (float)(Math.PI * 2);
 
-  /*
-  private MapLocation getTreeGap() {
-    Set<MapLocation> myTreeLocations = new HashSet<>();
-    for (TreeInfo tree : getMyTrees()) {
-      myTreeLocations.add(tree.location);
-    }
+    List<MapLocation> sc = getSurroundingLocations(treeRadius, distance, offset);
+    this.gap = sc.remove(0); // for spawning out of
+    this.treeLocations = new HashSet(sc);
+    this.inPosition = true;
 
     for (MapLocation l : this.treeLocations) {
-      if (!myTreeLocations.contains(l)) {
-        return l;
-      }
+      // TODO(samwho): cancel?
+      plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
+      treesScheduled++;
     }
 
-    Utils.debug_out("unable to find tree gap");
-
-    // Should never happen
-    return null;
-  }
-  */
-
-  private void plantMissingTrees() throws GameActionException {
-    for (MapLocation l : this.treeLocations) {
-      if (rc.senseTreeAtLocation(l) == null) {
-        plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
-        treesScheduled++;
-      }
-    }
+    build(RobotType.SOLDIER, rc.getLocation().directionTo(this.gap));
   }
 
   private boolean isGoodLocation(MapLocation l) throws GameActionException {
@@ -122,22 +87,9 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
       !rc.isCircleOccupiedExceptByThisRobot(l, gardenRadius());
   }
 
-  private float gardenRadius() {
-    float treeRadius = 1.00f;
-    float myRadius = rc.getType().bodyRadius;
-    float buffer = 1.0f; // so we don't set up too close to walls and whatnot
-
-    return (2 * treeRadius) + myRadius + buffer;
-  }
-
   private void moveToPotentialGardeningLocation() throws GameActionException {
-    if (inPosition) {
-      throw new GameActionException(null,
-          "moveToPotentialGardeningLocation() called after in position");
-    }
-
     float distance = rc.getType().sensorRadius - gardenRadius() - 0.01f;
-    List<MapLocation> potentialSpots = getNSurroundingCircles(12, distance);
+    List<MapLocation> potentialSpots = getNSurroundingLocations(12, distance);
 
     for (MapLocation l : potentialSpots) {
       if (isGoodLocation(l)) {
@@ -148,9 +100,19 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
     }
 
     // Nothing good nearby? Run around like a nob.
-    MapLocation l =
-      rc.getLocation().add(Utils.randomDirection(), rc.getType().strideRadius);
+    moveRandomly();
+  }
 
+  private void moveRandomly() {
+    Direction d = Utils.randomMovableDirection(rc);
+    if (d == null) {
+      // We're stuck. Visually indicate and try again next turn.
+      rc.setIndicatorDot(rc.getLocation(), 255, 0, 0);
+      run("get unstuck", () -> moveRandomly());
+      return;
+    }
+
+    MapLocation l = rc.getLocation().add(d, rc.getType().strideRadius);
     Utils.debug_out("no good locations, moving randomly to: " + l);
     moveTo(l);
   }
@@ -200,5 +162,36 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
     }
 
     return saddest;
+  }
+
+  private float gardenRadius() {
+    float treeRadius = 1.00f;
+    float myRadius = rc.getType().bodyRadius;
+    float buffer = 1.0f; // so we don't set up too close to walls and whatnot
+
+    return (2 * treeRadius) + myRadius + buffer;
+  }
+
+  private TreeInfo[] getMyTrees() {
+    return rc.senseNearbyTrees(gardenRadius(), rc.getTeam());
+  }
+
+  private boolean isMissingTrees() throws GameActionException {
+    for (MapLocation l : this.treeLocations) {
+      if (rc.senseTreeAtLocation(l) == null) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private void plantMissingTrees() throws GameActionException {
+    for (MapLocation l : this.treeLocations) {
+      if (rc.senseTreeAtLocation(l) == null) {
+        plant(Integer.MAX_VALUE, rc.getLocation().directionTo(l));
+        treesScheduled++;
+      }
+    }
   }
 }
