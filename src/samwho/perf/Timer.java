@@ -8,6 +8,8 @@ import battlecode.common.*;
 import java.io.Closeable;
 
 public class Timer implements Closeable {
+  private static final boolean ENABLED = false;
+
   private Timer parent;
   private BytecodeCounter bc;
   private RobotController rc;
@@ -15,7 +17,22 @@ public class Timer implements Closeable {
   private int overhead;
   private int recorded;
 
-  public Timer(RobotController rc, String desc) {
+  private static class FakeTimer extends Timer {
+    public FakeTimer(RobotController rc, String desc) { super(rc, desc); }
+    @Override public void prep() { }
+    @Override public int record(String message) { return 0; }
+    @Override public void close() { }
+  }
+
+  public static Timer create(RobotController rc, String desc) {
+    if (!ENABLED) {
+      return new FakeTimer(rc, desc);
+    }
+
+    return new Timer(rc, desc);
+  }
+
+  private Timer(RobotController rc, String desc) {
     this.rc = rc;
     this.bc = new BytecodeCounter(rc);
     this.desc = desc;
@@ -30,13 +47,6 @@ public class Timer implements Closeable {
    */
   public void prep() {
     overhead += bc.lap();
-  }
-
-  /**
-   * Discards time elapsed up until this point.
-   */
-  public void discard() {
-    bc.lap();
   }
 
   /**

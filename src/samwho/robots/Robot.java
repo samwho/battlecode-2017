@@ -103,7 +103,7 @@ public abstract strictfp class Robot {
     while (true) {
       try {
         this.round = rc.getRoundNum();
-        t = new Timer(rc, "r" + this.round);
+        t = Timer.create(rc, "r" + this.round);
 
         if (this.round % STATUS_INTERVAL == 0) statusReport();
 
