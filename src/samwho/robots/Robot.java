@@ -3,6 +3,7 @@ package samwho.robots;
 import samwho.*;
 import samwho.actions.*;
 import samwho.functional.*;
+import samwho.perf.*;
 
 import java.util.function.Predicate;
 import java.util.ArrayList;
@@ -35,7 +36,9 @@ public abstract strictfp class Robot {
 
   // For checking when the round has changed.
   private int round = 0;
-  private BytecodeCounter counter = null;
+
+  // For timing stuff. Derp.
+  private Timer t;
 
   /**
    * Only to be called by RobotFactory.
@@ -94,64 +97,43 @@ public abstract strictfp class Robot {
    * to the start of the order of operations.
    */
   public void run() throws GameActionException {
-    setCounters();
-
+    this.round = rc.getRoundNum();
     onCreate();
 
     while (true) {
-      setCounters();
+      try {
+        this.round = rc.getRoundNum();
+        t = new Timer(rc, "r" + this.round);
 
-      if (DEBUG_PERFORMANCE) {
-        if (this.counter != null) {
-          this.counter.close();
-        }
+        if (this.round % STATUS_INTERVAL == 0) statusReport();
 
-        this.counter = new BytecodeCounter(rc, "" + this.round);
+        onNewRound(this.round);
+        if (this.round != rc.getRoundNum()) continue;
+
+        handleActionPhase();
+        if (this.round != rc.getRoundNum()) continue;
+
+        onIdle();
+      } finally {
+        // If we have time spare, yield it for now. Later we might be able to do
+        // something more useful with this time.
+        t.close();
+        Clock.yield();
       }
-
-      if (this.round % STATUS_INTERVAL == 0) {
-        lap();
-        statusReport();
-        lap("statusReport");
-      }
-
-      lap();
-      onNewRound(this.round);
-      lap("onNewRound");
-
-      if (isNewRound()) {
-        continue;
-      }
-
-      lap();
-      handleActionPhase();
-      lap("handleActionPhase");
-
-      if (isNewRound()) {
-        continue;
-      }
-
-      lap();
-      onIdle();
-      lap("onIdle");
-
-      if (isNewRound()) {
-        continue;
-      }
-
-      // If we have time spare, yield it for now. Later we might be able to do
-      // something more useful with this time.
-      Clock.yield();
     }
   }
 
   private void statusReport() {
+    t.prep();
+
     Utils.debug_out("--- begin status report ---");
     Utils.debug_out("actionQueue size: " + actionQueue.size());
     for (Action a : actionQueue) {
       Utils.debug_out("  - " + a.getName());
     }
     Utils.debug_out("--- end status report ---");
+
+    t.record("statusReport");
   }
 
   /**
@@ -159,16 +141,19 @@ public abstract strictfp class Robot {
    * can.
    */
   private void handleActionPhase() throws GameActionException {
-    while (actionQueue.size() > 0 && canDoAnything() && !isNewRound()) {
+    while (actionQueue.size() > 0 && canDoAnything() &&
+        this.round == rc.getRoundNum()) {
       int actionsRun = 0;
 
+      t.prep();
       PriorityQueue<Action> nActionQueue;
       nActionQueue = new PriorityQueue<>(actionQueue);
       actionQueue = new PriorityQueue<>();
+      t.record("queue swap");
 
       for (Action a : nActionQueue) {
-        // We used to check for isNewRound() here but it leaves the possibility
-        // of dropping actions without trying to run them due to how we due the
+        // We used to check for new round here but it leaves the possibility of
+        // dropping actions without trying to run them due to how we due the
         // queue copying up there ^
         if (!canDoAnything()) {
           break;
@@ -178,9 +163,9 @@ public abstract strictfp class Robot {
           continue;
         }
 
-        lap();
+        t.prep();
         boolean success = a.run();
-        lap(a.getName());
+        t.record(a.getName());
 
         // Action was not successful, so we re-queue it for next turn and go to
         // the next action.
@@ -194,18 +179,18 @@ public abstract strictfp class Robot {
         actionsRun++;
 
         // Run callbacks only if the action succeeded.
-        lap();
+        t.prep();
         if (a instanceof BuildAction) {
           onBuildFinished((BuildAction)a);
-          lap("onBuildFinished");
+          t.record("onBuildFinished");
         } else if (a instanceof MoveAction) {
           onMoveFinished((MoveAction)a);
-          lap("onMoveFinished");
+          t.record("onMoveFinished");
         }
 
         // Default callback, always called.
         onActionFinished(a);
-        lap("onActionFinished");
+        t.record("onActionFinished");
       }
 
       // If we didn't manage to run any of the actions, we take this to mean
@@ -281,30 +266,6 @@ public abstract strictfp class Robot {
     return false;
   }
 
-  /**
-   * Checks if the round has changed since this was last called.
-   */
-  boolean isNewRound() {
-    return this.round != rc.getRoundNum();
-  }
-
-  void setCounters() {
-    this.round = rc.getRoundNum();
-  }
-
-  protected void lap() {
-    if (this.counter != null) {
-      this.counter.lap();
-    }
-  }
-
-  protected void lap(String message) {
-    if (this.counter != null) {
-      int bytecodes = this.counter.lap();
-      Utils.debug_out(message + " -> " + bytecodes);
-    }
-  }
-
   public MoveAction moveTo(MapLocation destination) {
     MoveAction ma = new MoveAction(DEFAULT_PRIORITY, this, destination);
     return enqueue(ma);
@@ -348,39 +309,6 @@ public abstract strictfp class Robot {
 
   public BuildAction build(RobotType type) {
     return build(DEFAULT_BUILD_PRIORITY, type);
-  }
-
-  /**
-   * Waits until a condition is true.
-   *
-   * Evaluates a given predicate every turn until that condition is true, then
-   * returns.
-   */
-  void waitUntil(GamePredicate predicate) throws GameActionException {
-    Utils.debug_out("waitUntil called...");
-
-    while (!predicate.test()) {
-      Utils.debug_out("condition not met, yielding");
-      Clock.yield();
-    }
-
-    Utils.debug_out("condition met, continuing");
-  }
-
-  protected boolean trySpawn(RobotType type) throws GameActionException {
-    Direction d = getUnoccupiedBuildDirectionFor(type);
-    if (d == null) {
-      Utils.debug_out("wasn't able to find good direction to spawn " + type.name());
-      return false;
-    }
-
-    if (!rc.canBuildRobot(type, d)) {
-      Utils.debug_out("unable to spawn " + type.name() + " at " + d);
-      return false;
-    }
-
-    rc.buildRobot(type, d);
-    return true;
   }
 
   /**

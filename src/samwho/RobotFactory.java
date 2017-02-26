@@ -1,5 +1,6 @@
 package samwho;
 
+import samwho.perf.*;
 import samwho.robots.*;
 
 import battlecode.common.*;
@@ -11,7 +12,7 @@ import java.util.Map;
 public strictfp class RobotFactory {
   // The default strategy. Eventually I'll branch out into trying more
   // strategies, but for the time being this is it.
-  static final Map<RobotType, Supplier<Robot>> DEFAULT_STRATEGY =
+  private static final Map<RobotType, Supplier<Robot>> DEFAULT_STRATEGY =
     new HashMap<RobotType, Supplier<Robot>>() {{
 
     put(RobotType.ARCHON,     () -> new Archon());
@@ -27,7 +28,7 @@ public strictfp class RobotFactory {
    * A known limitation of this is that you can't switch a robot's type mid-way
    * through a game.
    */
-  static final Map<RobotType, Supplier<Robot>> STRATEGY = DEFAULT_STRATEGY;
+  private static final Map<RobotType, Supplier<Robot>> STRATEGY = DEFAULT_STRATEGY;
 
   public static Robot create(RobotController rc) {
     Supplier<Robot> s = STRATEGY.get(rc.getType());
