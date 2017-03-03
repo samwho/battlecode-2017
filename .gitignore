@@ -22,6 +22,10 @@
 
 # User-specific stuff:
 battlecode-scaffold.iws
+others/
+src/maxdupenois
+src/ben
+src/swarming
 
 # Eclipse user-specific files
 .classpath

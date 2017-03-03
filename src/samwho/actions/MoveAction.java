@@ -23,32 +23,52 @@ public strictfp class MoveAction extends Action {
     this.destination = destination;
   }
 
+  private boolean canMoveTo(MapLocation l) throws GameActionException {
+
+    return true;
+  }
+
   @Override
   public boolean run() throws GameActionException {
     rc.setIndicatorDot(destination, 0, 255, 0);
+    if (rc.hasMoved()) return false;
 
-    if (rc.hasMoved()) {
-      return false;
-    }
-
-    float bodyRadius = rc.getType().bodyRadius;
-    if (rc.canSenseAllOfCircle(destination, bodyRadius) &&
-        (!rc.onTheMap(destination, bodyRadius) ||
-         rc.isCircleOccupiedExceptByThisRobot(destination, bodyRadius))) {
-      // We're no longer able to actually get to our destination because it is
-      // occupied by something, or we have found that it is not on the map.
-      rc.setIndicatorDot(destination, 255, 0, 0);
-      this.cancel();
-      return true;
-    }
-
+    RobotType t = rc.getType();
     MapLocation myLocation = rc.getLocation();
+
     if (myLocation.distanceTo(destination) < TOLERANCE) {
       return true;
     }
 
     Direction moveDirection = myLocation.directionTo(destination);
     float distance = myLocation.distanceTo(destination);
+
+    if (!rc.canSenseAllOfCircle(destination, t.bodyRadius)) {
+      mover.tryMove(moveDirection, distance, 30 /* offset */, 6 /* attempts */);
+      return false;
+    }
+
+    if (!rc.onTheMap(destination, t.bodyRadius)) {
+      rc.setIndicatorDot(destination, 255, 0, 0);
+      this.cancel("destination not on map");
+      return false;
+    }
+
+
+    if (rc.isCircleOccupiedExceptByThisRobot(destination, t.bodyRadius)) {
+      if (t == RobotType.SCOUT) {
+        if (rc.isLocationOccupiedByRobot(destination)) {
+          this.cancel("destination occupied");
+          return false;
+        }
+      } else {
+        if (rc.isLocationOccupied(destination)) {
+          this.cancel("destination occupied");
+          return false;
+        }
+      }
+    }
+
     float strideRadius = rc.getType().strideRadius;
     if (distance > strideRadius) {
       distance = strideRadius;

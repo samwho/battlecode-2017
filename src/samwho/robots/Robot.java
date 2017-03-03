@@ -178,6 +178,7 @@ public abstract strictfp class Robot {
         }
 
         if (a.isCancelled()) {
+          Utils.debug_out(a.getName() + " canceled: " + a.getCancelMessage());
           onCancelledCallback(a);
           continue;
         }
@@ -187,6 +188,7 @@ public abstract strictfp class Robot {
         t.record(a.getName());
 
         if (a.isCancelled()) {
+          Utils.debug_out(a.getName() + " canceled: " + a.getCancelMessage());
           onCancelledCallback(a);
           continue;
         }
@@ -434,6 +436,20 @@ public abstract strictfp class Robot {
     }
 
     return null;
+  }
+
+  public void moveRandomly() {
+    Direction d = Utils.randomMovableDirection(rc);
+    if (d == null) {
+      // We're stuck. Visually indicate and try again next turn.
+      rc.setIndicatorDot(rc.getLocation(), 255, 0, 0);
+      run("get unstuck", () -> moveRandomly());
+      return;
+    }
+
+    MapLocation l = rc.getLocation().add(d, rc.getType().strideRadius);
+    Utils.debug_out("no good locations, moving randomly to: " + l);
+    moveTo(l);
   }
 
   /**

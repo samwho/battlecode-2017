@@ -17,6 +17,7 @@ public strictfp class RobotFactory {
 
     put(RobotType.ARCHON,     () -> new Archon());
     put(RobotType.GARDENER,   () -> new HexagonalSpawnerGardener());
+    put(RobotType.SCOUT,      () -> new Scout());
     put(RobotType.SOLDIER,    () -> new Soldier());
     put(RobotType.LUMBERJACK, () -> new Lumberjack());
   }};

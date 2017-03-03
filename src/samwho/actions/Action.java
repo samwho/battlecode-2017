@@ -18,6 +18,7 @@ public abstract strictfp class Action implements Comparable<Action> {
   private GamePredicate shouldCancel;
   private String name;
   private boolean cancel = false;
+  private String cancelMessage = "";
   private int bytecodeCost = 0;
 
   public Action(int priority, String name) {
@@ -58,6 +59,15 @@ public abstract strictfp class Action implements Comparable<Action> {
    */
   public boolean isCancelled() throws GameActionException {
     return cancel || shouldCancel.test();
+  }
+
+  public String getCancelMessage() {
+    return this.cancelMessage;
+  }
+
+  public void cancel(String message) {
+    this.cancelMessage = message;
+    cancel();
   }
 
   public void cancel() {

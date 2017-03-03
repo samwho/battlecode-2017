@@ -20,6 +20,9 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
 
   @Override
   public void onCreate() {
+    build(RobotType.SCOUT);
+    build(RobotType.LUMBERJACK);
+
     run("onCreate", () -> establishGarden());
   }
 
@@ -40,7 +43,9 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
 
   @Override
   public void onBuildFinished(BuildAction ba) {
-    build(ba.getType(), ba.getDirection());
+    if (ba.getType() == RobotType.SOLDIER) {
+      build(ba.getType(), ba.getDirection());
+    }
   }
 
   @Override
@@ -101,20 +106,6 @@ public strictfp class HexagonalSpawnerGardener extends Gardener {
 
     // Nothing good nearby? Run around like a nob.
     moveRandomly();
-  }
-
-  private void moveRandomly() {
-    Direction d = Utils.randomMovableDirection(rc);
-    if (d == null) {
-      // We're stuck. Visually indicate and try again next turn.
-      rc.setIndicatorDot(rc.getLocation(), 255, 0, 0);
-      run("get unstuck", () -> moveRandomly());
-      return;
-    }
-
-    MapLocation l = rc.getLocation().add(d, rc.getType().strideRadius);
-    Utils.debug_out("no good locations, moving randomly to: " + l);
-    moveTo(l);
   }
 
   /**
