@@ -26,6 +26,7 @@ others/
 src/maxdupenois
 src/ben
 src/swarming
+docs/
 
 # Eclipse user-specific files
 .classpath
